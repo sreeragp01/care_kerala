@@ -1,0 +1,50 @@
+name: CareLink Kerala Production CI Quality Gate
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test:
+    name: Django Backend Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Django Security & Domain Test Suite
+        run: |
+          cd backend
+          python manage.py test apps.authentication apps.patients apps.visits apps.inventory apps.blood_donors apps.finance apps.alerts
+
+  flutter-test:
+    name: Flutter Analysis & Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Run Flutter Static Analysis
+        run: flutter analyze
+
+      - name: Run Flutter Unit & Widget Tests
+        run: flutter test

@@ -1,0 +1,26 @@
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+from apps.organizations.models import Organization
+
+class UserRole(models.TextChoices):
+    SUPER_ADMIN = 'SUPER_ADMIN', 'Super Admin'
+    ORG_ADMIN = 'ORG_ADMIN', 'Organization Admin'
+    DOCTOR = 'DOCTOR', 'Palliative Doctor'
+    NURSE = 'NURSE', 'Community Nurse'
+    VOLUNTEER = 'VOLUNTEER', 'Palliative Volunteer'
+    RECEPTION = 'RECEPTION', 'Receptionist'
+    PHARMACIST = 'PHARMACIST', 'Pharmacist'
+    ACCOUNTANT = 'ACCOUNTANT', 'Accountant'
+    AMBULANCE_DRIVER = 'AMBULANCE_DRIVER', 'Ambulance Driver'
+    PATIENT = 'PATIENT', 'Patient'
+    FAMILY_MEMBER = 'FAMILY_MEMBER', 'Family Member'
+    BLOOD_DONOR = 'BLOOD_DONOR', 'Blood Donor'
+
+class User(AbstractUser):
+    role = models.CharField(max_length=50, choices=UserRole.choices, default=UserRole.NURSE)
+    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    phone = models.CharField(max_length=20, blank=True)
+    district = models.CharField(max_length=100, default='Kozhikode')
+
+    def __str__(self):
+        return f"{self.username} ({self.get_role_display()})"
