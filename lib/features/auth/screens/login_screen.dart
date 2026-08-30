@@ -467,7 +467,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               keyboardType: TextInputType.emailAddress,
                               decoration: const InputDecoration(
                                 labelText: 'Email or Username *',
-                                hintText: 'mrtuf2204@gmail.com',
+                                hintText: 'admin@carelink.kerala.gov.in',
                                 prefixIcon: Icon(Icons.person_outline_rounded),
                               ),
                             ),
