@@ -4,6 +4,9 @@ import '../../../core/models/user_model.dart';
 import '../../../core/models/network_models.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/widgets/glass_card.dart';
+import 'doctor_opd_console_screen.dart';
+import 'reception_desk_screen.dart';
+import 'patient_live_queue_tracker_screen.dart';
 
 class HospitalManagementDashboard extends StatefulWidget {
   final AppStateProvider state;
@@ -108,6 +111,7 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Live OPD Operations Banner
           GlassCard(
             padding: const EdgeInsets.all(18),
             child: Column(
@@ -116,74 +120,184 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Profile Completeness',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                      ),
+                    Row(
+                      children: [
+                        const Icon(Icons.flash_on_rounded, color: AppColors.brandHealthGreen, size: 20),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Today\'s Live OPD Operations',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.brandHealthGreen.withValues(alpha: 0.2),
+                        color: AppColors.brandHealthGreen.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        '92% Complete',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.brandHealthGreen),
-                      ),
+                      child: const Text('Live 🟢', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.brandHealthGreen)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: const LinearProgressIndicator(
-                    value: 0.92,
-                    minHeight: 8,
-                    backgroundColor: Colors.white12,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.brandHealthGreen),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '✓ Basic Information Verified\n✓ 24x7 Emergency Contact Configured\n✓ 3 Doctor Schedules Active\n⚠ Upload NABH Accreditation Certificate to reach 100%',
-                  style: TextStyle(fontSize: 11, height: 1.4, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    _buildOpdStat('Appointments', '126', AppColors.brandNavy, isDark),
+                    _buildOpdStat('Waiting', '18', Colors.orange, isDark),
+                    _buildOpdStat('Consulting', '7', AppColors.brandTeal, isDark),
+                    _buildOpdStat('Completed', '72', AppColors.brandHealthGreen, isDark),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildStatTile('Active Doctors', '${state.doctors.length}', Icons.medical_services_rounded, AppColors.brandTeal, isDark),
-              const SizedBox(width: 10),
-              _buildStatTile('Pending Changes', '${state.changeRequests.where((c) => c.status == "PENDING").length}', Icons.pending_actions_rounded, Colors.orangeAccent, isDark),
-            ],
-          ),
+
+          // Operational Station Quick Launchers
+          _buildSectionTitle('Hospital Workspaces & Consoles', isDark),
           const SizedBox(height: 10),
           Row(
             children: [
-              _buildStatTile('Appt Requests', '${state.appointmentRequests.length}', Icons.calendar_month_rounded, AppColors.brandNavy, isDark),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandTeal,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.medical_services_rounded, color: Colors.white, size: 20),
+                  label: const Text('Doctor Station', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DoctorOPDConsoleScreen()),
+                    );
+                  },
+                ),
+              ),
               const SizedBox(width: 10),
-              _buildStatTile('Verification Status', 'Verified 🟢', Icons.verified_rounded, AppColors.brandHealthGreen, isDark),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandNavy,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.confirmation_number_rounded, color: Colors.white, size: 20),
+                  label: const Text('Reception Desk', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ReceptionDeskScreen()),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: const BorderSide(color: AppColors.brandTeal),
+            ),
+            icon: const Icon(Icons.track_changes_rounded, color: AppColors.brandTeal, size: 18),
+            label: const Text('Open Patient Live Queue Tracker 📱', style: TextStyle(color: AppColors.brandTeal, fontWeight: FontWeight.bold)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PatientLiveQueueTrackerScreen()),
+              );
+            },
+          ),
           const SizedBox(height: 20),
-          _buildSectionTitle('CareLink Network Governance Principles', isDark),
+
+          // Department Live Queues
+          _buildSectionTitle('Active Department Queues', isDark),
+          const SizedBox(height: 8),
+          _buildDeptQueueTile('Cardiology OPD', 'Dr. Priya Varma • Room 102', 'Serving: A-18', 'Waiting: 4', AppColors.brandTeal, isDark),
+          _buildDeptQueueTile('Oncology Center', 'Dr. Narayanan Kutty • Room 105', 'Serving: B-02', 'Waiting: 3', Colors.purple, isDark),
+          _buildDeptQueueTile('Palliative Desk', 'Dr. K. Mathew • Room 108', 'Serving: P-01', 'Waiting: 1', AppColors.brandHealthGreen, isDark),
+          const SizedBox(height: 20),
+
+          // Institutional Governance Card
+          _buildSectionTitle('Profile Status & Accreditations', isDark),
           const SizedBox(height: 8),
           GlassCard(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildRuleItem('1. Real-time Freshness', 'Doctor consultation hours and OPD timings should be updated immediately if a doctor goes on leave.'),
-                _buildRuleItem('2. Moderator Approval Flow', 'Updates proposed by healthcare moderators require Organization Admin approval before publishing.'),
-                _buildRuleItem('3. Accurate Triage', 'Never publish inaccurate 24x7 emergency contacts or unavailable clinical services.'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Institutional Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary)),
+                    const Text('Verified & Published 🟢', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.brandHealthGreen)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text('Kerala Clinical Establishment Act • License #CEA/KKD/2024/098', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOpdStat(String label, String count, Color color, bool isDark) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(count, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeptQueueTile(String dept, String doctor, String serving, String waiting, Color color, bool isDark) {
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: color.withValues(alpha: 0.15),
+                child: Icon(Icons.local_hospital_rounded, color: color, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(dept, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary)),
+                  Text(doctor, style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+                ],
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
+                child: Text(serving, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+              ),
+              const SizedBox(height: 2),
+              Text(waiting, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            ],
           ),
         ],
       ),
@@ -625,49 +739,6 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
           ),
         );
       },
-    );
-  }
-
-  Widget _buildStatTile(String label, String value, IconData icon, Color color, bool isDark) {
-    return Expanded(
-      child: GlassCard(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Icon(icon, size: 22, color: color),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                    ),
-                  ),
-                  Text(label, style: TextStyle(fontSize: 10, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRuleItem(String title, String desc) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.brandTeal)),
-          Text(desc, style: const TextStyle(fontSize: 11, height: 1.3)),
-        ],
-      ),
     );
   }
 

@@ -13,11 +13,16 @@ from .models import (
     Doctor,
     DoctorAffiliation,
     DoctorSchedule,
+    DoctorAvailability,
+    ScheduleException,
     ChangeRequest,
     OrganizationDocument,
     ClaimOrganizationRequest,
     PatientInformationReport,
     AppointmentRequest,
+    AppointmentStatusHistory,
+    QueueSession,
+    QueueToken,
 )
 from apps.organizations.models import Organization
 
@@ -296,3 +301,45 @@ class HospitalTeamInvitationSerializer(serializers.ModelSerializer):
     class Meta:
         model = HospitalTeamInvitation
         fields = '__all__'
+
+class DoctorAvailabilitySerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source='doctor.name', read_only=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = DoctorAvailability
+        fields = '__all__'
+
+class ScheduleExceptionSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source='affiliation.doctor.name', read_only=True)
+    substitute_doctor_name = serializers.CharField(source='substitute_doctor.name', read_only=True)
+
+    class Meta:
+        model = ScheduleException
+        fields = '__all__'
+
+class AppointmentStatusHistorySerializer(serializers.ModelSerializer):
+    changed_by_username = serializers.CharField(source='changed_by.username', read_only=True)
+
+    class Meta:
+        model = AppointmentStatusHistory
+        fields = '__all__'
+
+class QueueTokenSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = QueueToken
+        fields = '__all__'
+
+class QueueSessionSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source='doctor.name', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    tokens = QueueTokenSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = QueueSession
+        fields = '__all__'
+

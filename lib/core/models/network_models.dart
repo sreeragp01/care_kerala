@@ -687,3 +687,184 @@ class HospitalTeamInvitationModel {
   }
 }
 
+class DoctorAvailabilityModel {
+  final String id;
+  final String doctorId;
+  final String doctorName;
+  final String organizationId;
+  final String date;
+  final String status;
+  final String statusDisplay;
+  final String reason;
+
+  const DoctorAvailabilityModel({
+    required this.id,
+    required this.doctorId,
+    required this.doctorName,
+    required this.organizationId,
+    required this.date,
+    required this.status,
+    this.statusDisplay = 'Available on Duty',
+    this.reason = '',
+  });
+
+  factory DoctorAvailabilityModel.fromJson(Map<String, dynamic> json) {
+    return DoctorAvailabilityModel(
+      id: json['id']?.toString() ?? '',
+      doctorId: json['doctor']?.toString() ?? json['doctor_id']?.toString() ?? '',
+      doctorName: json['doctor_name'] ?? '',
+      organizationId: json['organization']?.toString() ?? json['organization_id']?.toString() ?? '',
+      date: json['date'] ?? '',
+      status: json['status'] ?? 'AVAILABLE',
+      statusDisplay: json['status_display'] ?? json['status'] ?? 'Available',
+      reason: json['reason'] ?? '',
+    );
+  }
+}
+
+class QueueTokenModel {
+  final String id;
+  final int tokenNumber;
+  final String tokenLabel;
+  final String patientName;
+  final String patientPhone;
+  final String status;
+  final String statusDisplay;
+  final String calledAt;
+  final String consultationStartedAt;
+  final String completedAt;
+  final String clinicalNotes;
+
+  const QueueTokenModel({
+    required this.id,
+    required this.tokenNumber,
+    required this.tokenLabel,
+    required this.patientName,
+    required this.patientPhone,
+    required this.status,
+    this.statusDisplay = 'Waiting',
+    this.calledAt = '',
+    this.consultationStartedAt = '',
+    this.completedAt = '',
+    this.clinicalNotes = '',
+  });
+
+  factory QueueTokenModel.fromJson(Map<String, dynamic> json) {
+    return QueueTokenModel(
+      id: json['id']?.toString() ?? '',
+      tokenNumber: json['token_number'] ?? 0,
+      tokenLabel: json['token_label'] ?? 'A-01',
+      patientName: json['patient_name'] ?? '',
+      patientPhone: json['patient_phone'] ?? '',
+      status: json['status'] ?? 'WAITING',
+      statusDisplay: json['status_display'] ?? json['status'] ?? 'Waiting',
+      calledAt: json['called_at'] ?? '',
+      consultationStartedAt: json['consultation_started_at'] ?? '',
+      completedAt: json['completed_at'] ?? '',
+      clinicalNotes: json['clinical_notes'] ?? '',
+    );
+  }
+}
+
+class QueueSessionModel {
+  final String id;
+  final String doctorId;
+  final String doctorName;
+  final String departmentName;
+  final String roomNumber;
+  final int currentTokenNumber;
+  final int totalTokensIssued;
+  final bool isActive;
+  final List<QueueTokenModel> tokens;
+
+  const QueueSessionModel({
+    required this.id,
+    required this.doctorId,
+    required this.doctorName,
+    this.departmentName = 'General OPD',
+    this.roomNumber = 'Room 102',
+    this.currentTokenNumber = 0,
+    this.totalTokensIssued = 0,
+    this.isActive = true,
+    this.tokens = const [],
+  });
+
+  factory QueueSessionModel.fromJson(Map<String, dynamic> json) {
+    List<QueueTokenModel> parsedTokens = [];
+    if (json['tokens'] != null && json['tokens'] is List) {
+      parsedTokens = (json['tokens'] as List)
+          .map((t) => QueueTokenModel.fromJson(t as Map<String, dynamic>))
+          .toList();
+    }
+
+    return QueueSessionModel(
+      id: json['id']?.toString() ?? '',
+      doctorId: json['doctor']?.toString() ?? '',
+      doctorName: json['doctor_name'] ?? '',
+      departmentName: json['department_name'] ?? 'General OPD',
+      roomNumber: json['room_number'] ?? 'Room 102',
+      currentTokenNumber: json['current_token_number'] ?? 0,
+      totalTokensIssued: json['total_tokens_issued'] ?? 0,
+      isActive: json['is_active'] ?? true,
+      tokens: parsedTokens,
+    );
+  }
+}
+
+class LiveQueueTrackerModel {
+  final String tokenId;
+  final String tokenLabel;
+  final int tokenNumber;
+  final String tokenStatus;
+  final String tokenStatusDisplay;
+  final int currentTokenNumber;
+  final String currentTokenLabel;
+  final int patientsAhead;
+  final int estimatedWaitMinutes;
+  final String doctorName;
+  final String doctorSpecialty;
+  final String roomNumber;
+  final String organizationName;
+  final String emergencyPhone;
+  final String sessionDate;
+
+  const LiveQueueTrackerModel({
+    required this.tokenId,
+    required this.tokenLabel,
+    required this.tokenNumber,
+    required this.tokenStatus,
+    this.tokenStatusDisplay = 'Waiting in Queue',
+    this.currentTokenNumber = 0,
+    this.currentTokenLabel = 'Not Started',
+    this.patientsAhead = 0,
+    this.estimatedWaitMinutes = 0,
+    required this.doctorName,
+    this.doctorSpecialty = 'General Medicine',
+    this.roomNumber = 'Room 102',
+    required this.organizationName,
+    this.emergencyPhone = '',
+    this.sessionDate = '',
+  });
+
+  factory LiveQueueTrackerModel.fromJson(Map<String, dynamic> json) {
+    return LiveQueueTrackerModel(
+      tokenId: json['token_id']?.toString() ?? '',
+      tokenLabel: json['token_label'] ?? 'A-01',
+      tokenNumber: json['token_number'] ?? 1,
+      tokenStatus: json['token_status'] ?? 'WAITING',
+      tokenStatusDisplay: json['token_status_display'] ?? json['token_status'] ?? 'Waiting',
+      currentTokenNumber: json['current_token_number'] ?? 0,
+      currentTokenLabel: json['current_token_label'] ?? 'Not Started',
+      patientsAhead: json['patients_ahead'] ?? 0,
+      estimatedWaitMinutes: json['estimated_wait_minutes'] ?? 0,
+      doctorName: json['doctor_name'] ?? 'Doctor',
+      doctorSpecialty: json['doctor_specialty'] ?? 'General Medicine',
+      roomNumber: json['room_number'] ?? 'OPD Room',
+      organizationName: json['organization_name'] ?? 'Hospital',
+      emergencyPhone: json['emergency_phone'] ?? '',
+      sessionDate: json['session_date'] ?? '',
+    );
+  }
+}
+
+

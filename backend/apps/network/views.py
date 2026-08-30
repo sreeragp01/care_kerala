@@ -19,11 +19,19 @@ from .models import (
     Doctor,
     DoctorAffiliation,
     DoctorSchedule,
+    DoctorAvailability,
+    DoctorAvailabilityStatus,
+    ScheduleException,
     ChangeRequest,
     OrganizationDocument,
     ClaimOrganizationRequest,
     PatientInformationReport,
+    AppointmentStatus,
     AppointmentRequest,
+    AppointmentStatusHistory,
+    TokenStatus,
+    QueueSession,
+    QueueToken,
 )
 from .serializers import (
     SpecialtySerializer,
@@ -38,6 +46,11 @@ from .serializers import (
     HospitalTeamInvitationSerializer,
     DoctorPublicSerializer,
     DoctorScheduleSerializer,
+    DoctorAvailabilitySerializer,
+    ScheduleExceptionSerializer,
+    AppointmentStatusHistorySerializer,
+    QueueSessionSerializer,
+    QueueTokenSerializer,
     ChangeRequestSerializer,
     OrganizationDocumentSerializer,
     ClaimOrganizationRequestSerializer,
@@ -50,6 +63,8 @@ from .permissions import (
     IsOrganizationModeratorOrAdmin,
     IsHospitalTeamAdmin,
     IsDocumentAuthorizedTenant,
+    CanManageOPDAndQueue,
+    IsAssignedDoctorOrHospitalAdmin,
 )
 from apps.organizations.models import Organization
 
@@ -1153,4 +1168,385 @@ class HospitalTeamMemberRevokeView(views.APIView):
             'message': f'Access revoked for {membership.user.username} at {membership.organization.name}. User account preserved.',
             'status': 'REVOKED'
         })
+
+# ==========================================
+# PHASE 2.4: HOSPITAL OPERATIONS & OPD QUEUES
+# ==========================================
+
+class DoctorAvailabilityView(views.APIView):
+    """Manage and query date-specific real-time doctor availability (AVAILABLE, ON_LEAVE, HOLIDAY, etc.)"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def get(self, request):
+        doctor_id = request.query_params.get('doctor_id')
+        org_id = request.query_params.get('organization_id')
+        date_str = request.query_params.get('date', timezone.now().strftime('%Y-%m-%d'))
+
+        qs = DoctorAvailability.objects.all()
+        if doctor_id:
+            qs = qs.filter(doctor_id=doctor_id)
+        if org_id:
+            qs = qs.filter(organization_id=org_id)
+        if date_str:
+            qs = qs.filter(date=date_str)
+
+        serializer = DoctorAvailabilitySerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        doctor_id = request.data.get('doctor_id')
+        org_id = request.data.get('organization_id')
+        date_str = request.data.get('date')
+        status_val = request.data.get('status', 'AVAILABLE')
+        reason = request.data.get('reason', '')
+
+        if not (doctor_id and org_id and date_str):
+            return Response({'error': 'doctor_id, organization_id, and date are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cross-tenant and doctor authorization
+        user_org = getattr(request.user, 'organization', None)
+        user_role = getattr(request.user, 'role', '')
+        is_super = request.user.is_superuser or user_role in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN')
+
+        if not is_super and user_org and str(user_org.id) != str(org_id):
+            has_membership = request.user.organization_memberships.filter(organization_id=org_id, status='ACTIVE').exists()
+            if not has_membership:
+                return Response({'error': 'Forbidden: Cross-tenant doctor availability update blocked.'}, status=status.HTTP_403_FORBIDDEN)
+
+        availability, created = DoctorAvailability.objects.update_or_create(
+            doctor_id=doctor_id,
+            organization_id=org_id,
+            date=date_str,
+            defaults={'status': status_val, 'reason': reason}
+        )
+
+        serializer = DoctorAvailabilitySerializer(availability)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+class ScheduleExceptionView(views.APIView):
+    """Manage date-specific exceptions/cancellations for recurring OPD schedules"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def get(self, request):
+        affiliation_id = request.query_params.get('affiliation_id')
+        qs = ScheduleException.objects.all()
+        if affiliation_id:
+            qs = qs.filter(affiliation_id=affiliation_id)
+        serializer = ScheduleExceptionSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = ScheduleExceptionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class AppointmentLifecycleActionView(views.APIView):
+    """Execute lifecycle state transitions on appointments with audit logging and queue linking"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def post(self, request, pk, action):
+        try:
+            appt = AppointmentRequest.objects.select_related('organization', 'doctor').get(id=pk)
+        except AppointmentRequest.DoesNotExist:
+            return Response({'error': 'Appointment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Cross-tenant check
+        user_org = getattr(request.user, 'organization', None)
+        is_super = request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN')
+        
+        if not is_super and user_org and user_org.id != appt.organization_id:
+            has_membership = request.user.organization_memberships.filter(organization_id=appt.organization_id, status='ACTIVE').exists()
+            if not has_membership:
+                return Response({'error': 'Forbidden: Cross-tenant appointment action not permitted.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Doctor role isolation: if logged in as doctor, cannot modify another doctor's appointment
+        if hasattr(request.user, 'doctor_profile') and getattr(request.user, 'role', '') in ('doctor', 'DOCTOR'):
+            if request.user.doctor_profile.id != appt.doctor_id:
+                return Response({'error': 'Forbidden: Doctor can only modify their assigned appointments.'}, status=status.HTTP_403_FORBIDDEN)
+
+        old_status = appt.status
+        action = action.lower()
+        notes = request.data.get('notes', '')
+
+        if action == 'accept':
+            appt.status = AppointmentStatus.ACCEPTED
+        elif action == 'confirm':
+            appt.status = AppointmentStatus.CONFIRMED
+            if not appt.token_number:
+                appt.token_number = f"T-{appt.id:03d}"
+        elif action == 'check-in':
+            appt.status = AppointmentStatus.CHECKED_IN
+            # Link or create QueueSession and QueueToken
+            today = timezone.now().date()
+            session, _ = QueueSession.objects.get_or_create(
+                organization=appt.organization,
+                doctor=appt.doctor,
+                session_date=today,
+                defaults={'room_number': 'OPD Room 102'}
+            )
+            token_count = session.tokens.count() + 1
+            token_label = f"A-{token_count:02d}"
+            
+            queue_token, _ = QueueToken.objects.get_or_create(
+                queue_session=session,
+                appointment=appt,
+                defaults={
+                    'token_number': token_count,
+                    'token_label': token_label,
+                    'patient_name': appt.patient_name,
+                    'patient_phone': appt.patient_phone,
+                    'status': TokenStatus.WAITING
+                }
+            )
+            session.total_tokens_issued = session.tokens.count()
+            session.save(update_fields=['total_tokens_issued'])
+            appt.token_number = queue_token.token_label
+        elif action == 'cancel':
+            appt.status = AppointmentStatus.CANCELLED
+        elif action == 'complete':
+            appt.status = AppointmentStatus.COMPLETED
+        elif action == 'no-show':
+            appt.status = AppointmentStatus.NO_SHOW
+        else:
+            return Response({'error': f'Unsupported action "{action}".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        appt.responded_at = timezone.now()
+        appt.responded_by = request.user
+        appt.save(update_fields=['status', 'token_number', 'responded_at', 'responded_by', 'updated_at'])
+
+        # Create status audit trail
+        AppointmentStatusHistory.objects.create(
+            appointment=appt,
+            from_status=old_status,
+            to_status=appt.status,
+            changed_by=request.user,
+            notes=notes
+        )
+
+        return Response({
+            'success': True,
+            'message': f'Appointment #{appt.id} transitioned from {old_status} to {appt.status}.',
+            'appointment': AppointmentRequestSerializer(appt).data
+        })
+
+class QueueSessionStartView(views.APIView):
+    """Start or retrieve today's active OPD Queue Session for a doctor and room"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def post(self, request):
+        doctor_id = request.data.get('doctor_id')
+        org_id = request.data.get('organization_id')
+        room_number = request.data.get('room_number', 'OPD Room 102')
+        today = timezone.now().date()
+
+        if not (doctor_id and org_id):
+            return Response({'error': 'doctor_id and organization_id are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        session, created = QueueSession.objects.get_or_create(
+            doctor_id=doctor_id,
+            organization_id=org_id,
+            session_date=today,
+            defaults={'room_number': room_number, 'is_active': True}
+        )
+
+        serializer = QueueSessionSerializer(session)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+class QueueTokenIssueView(views.APIView):
+    """Issue a new queue token for a patient (walk-in or check-in)"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def post(self, request):
+        session_id = request.data.get('queue_session_id')
+        patient_name = request.data.get('patient_name')
+        patient_phone = request.data.get('patient_phone')
+        appt_id = request.data.get('appointment_id')
+
+        if not (session_id and patient_name and patient_phone):
+            return Response({'error': 'queue_session_id, patient_name, and patient_phone are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            session = QueueSession.objects.get(id=session_id)
+        except QueueSession.DoesNotExist:
+            return Response({'error': 'Queue session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        next_number = session.tokens.count() + 1
+        token_label = f"A-{next_number:02d}"
+
+        token = QueueToken.objects.create(
+            queue_session=session,
+            appointment_id=appt_id,
+            token_number=next_number,
+            token_label=token_label,
+            patient_name=patient_name,
+            patient_phone=patient_phone,
+            status=TokenStatus.WAITING
+        )
+
+        session.total_tokens_issued = session.tokens.count()
+        session.save(update_fields=['total_tokens_issued'])
+
+        serializer = QueueTokenSerializer(token)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class QueueTokenCallNextView(views.APIView):
+    """Doctor or Desk calls next waiting patient in queue"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def post(self, request, pk):
+        try:
+            token = QueueToken.objects.select_related('queue_session', 'queue_session__organization').get(id=pk)
+        except QueueToken.DoesNotExist:
+            return Response({'error': 'Queue token not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Cross-tenant and doctor checks
+        user_org = getattr(request.user, 'organization', None)
+        is_super = request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN')
+        
+        if not is_super and user_org and user_org.id != token.queue_session.organization_id:
+            return Response({'error': 'Forbidden: Cross-tenant token calling not permitted.'}, status=status.HTTP_403_FORBIDDEN)
+
+        token.status = TokenStatus.CALLED
+        token.called_at = timezone.now()
+        token.save(update_fields=['status', 'called_at'])
+
+        session = token.queue_session
+        session.current_token_number = token.token_number
+        session.save(update_fields=['current_token_number'])
+
+        return Response({
+            'success': True,
+            'message': f'Token {token.token_label} called to {session.room_number}.',
+            'token': QueueTokenSerializer(token).data,
+            'current_token_number': session.current_token_number
+        })
+
+class QueueTokenConsultationActionView(views.APIView):
+    """Doctor consultation actions: start consultation, complete, or skip"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def post(self, request, pk, action):
+        try:
+            token = QueueToken.objects.select_related('queue_session', 'appointment').get(id=pk)
+        except QueueToken.DoesNotExist:
+            return Response({'error': 'Queue token not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        action = action.lower()
+        if action == 'start':
+            token.status = TokenStatus.IN_CONSULTATION
+            token.consultation_started_at = timezone.now()
+            token.save(update_fields=['status', 'consultation_started_at'])
+            if token.appointment:
+                token.appointment.status = AppointmentStatus.IN_CONSULTATION
+                token.appointment.save(update_fields=['status'])
+        elif action == 'complete':
+            token.status = TokenStatus.COMPLETED
+            token.completed_at = timezone.now()
+            token.clinical_notes = request.data.get('clinical_notes', '')
+            token.save(update_fields=['status', 'completed_at', 'clinical_notes'])
+            if token.appointment:
+                token.appointment.status = AppointmentStatus.COMPLETED
+                token.appointment.save(update_fields=['status'])
+        elif action == 'skip':
+            token.status = TokenStatus.SKIPPED
+            token.save(update_fields=['status'])
+        else:
+            return Response({'error': f'Invalid action "{action}".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'success': True,
+            'message': f'Token {token.token_label} consultation updated to {token.status}.',
+            'token': QueueTokenSerializer(token).data
+        })
+
+class PatientLiveQueueTrackerView(views.APIView):
+    """Patient real-time live queue and wait-time tracker"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        try:
+            token = QueueToken.objects.select_related(
+                'queue_session', 'queue_session__doctor', 'queue_session__organization'
+            ).get(id=pk)
+        except QueueToken.DoesNotExist:
+            return Response({'error': 'Token not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        session = token.queue_session
+        doctor = session.doctor
+        org = session.organization
+
+        current_token_num = session.current_token_number
+        your_token_num = token.token_number
+        patients_ahead = max(0, your_token_num - current_token_num - (1 if token.status == TokenStatus.IN_CONSULTATION else 0))
+        estimated_wait_minutes = patients_ahead * 10
+
+        return Response({
+            'token_id': token.id,
+            'token_label': token.token_label,
+            'token_number': your_token_num,
+            'token_status': token.status,
+            'token_status_display': token.get_status_display(),
+            'current_token_number': current_token_num,
+            'current_token_label': f"A-{current_token_num:02d}" if current_token_num > 0 else "Not Started",
+            'patients_ahead': patients_ahead,
+            'estimated_wait_minutes': estimated_wait_minutes,
+            'doctor_name': f"Dr. {doctor.name}",
+            'doctor_specialty': doctor.primary_specialty.name if doctor.primary_specialty else "General OPD",
+            'room_number': session.room_number,
+            'organization_name': org.name,
+            'emergency_phone': org.phone,
+            'session_date': str(session.session_date)
+        })
+
+class HospitalOperationsSummaryView(views.APIView):
+    """Hospital Admin & Desk: Today's aggregated OPD operational statistics"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def get(self, request):
+        org_id = request.query_params.get('organization_id')
+        user_org = getattr(request.user, 'organization', None)
+
+        if not org_id and user_org:
+            org_id = user_org.id
+
+        if not org_id:
+            return Response({'error': 'organization_id parameter required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        today = timezone.now().date()
+        
+        today_appts = AppointmentRequest.objects.filter(organization_id=org_id, preferred_date=today)
+        total_appts = today_appts.count()
+        waiting_count = today_appts.filter(status__in=[AppointmentStatus.ACCEPTED, AppointmentStatus.CONFIRMED, AppointmentStatus.CHECKED_IN]).count()
+        in_consultation_count = today_appts.filter(status=AppointmentStatus.IN_CONSULTATION).count()
+        completed_count = today_appts.filter(status=AppointmentStatus.COMPLETED).count()
+        cancelled_count = today_appts.filter(status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW, AppointmentStatus.REJECTED]).count()
+
+        sessions = QueueSession.objects.filter(organization_id=org_id, session_date=today).select_related('doctor', 'department')
+        queue_summaries = []
+        for s in sessions:
+            queue_summaries.append({
+                'session_id': s.id,
+                'doctor_name': f"Dr. {s.doctor.name}",
+                'department': s.department.name if s.department else "General OPD",
+                'room_number': s.room_number,
+                'current_token': s.current_token_number,
+                'total_tokens': s.total_tokens_issued,
+                'waiting_count': s.tokens.filter(status=TokenStatus.WAITING).count(),
+                'in_consultation': s.tokens.filter(status=TokenStatus.IN_CONSULTATION).count(),
+                'completed_count': s.tokens.filter(status=TokenStatus.COMPLETED).count(),
+            })
+
+        return Response({
+            'organization_id': org_id,
+            'date': str(today),
+            'total_appointments_today': total_appts,
+            'waiting_patients': waiting_count,
+            'in_consultation': in_consultation_count,
+            'completed_consultations': completed_count,
+            'cancelled_or_noshow': cancelled_count,
+            'active_queue_sessions': queue_summaries
+        })
+
 

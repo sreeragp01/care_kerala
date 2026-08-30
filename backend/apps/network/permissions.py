@@ -110,3 +110,71 @@ class IsDocumentAuthorizedTenant(permissions.BasePermission):
 
         # Only Org Admin or Org Owner can view sensitive documents
         return user_role in ('orgAdmin', 'organizationOwner', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER')
+
+class CanManageOPDAndQueue(permissions.BasePermission):
+    """Allows Org Admins, Receptionists, Doctors, and Moderators to manage daily OPD and patient queues."""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN'):
+            return True
+
+        user_role = getattr(request.user, 'role', '')
+        if user_role in ('orgAdmin', 'organizationOwner', 'doctor', 'receptionist', 'nurse', 'staff', 'moderator',
+                         'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'DOCTOR', 'RECEPTION', 'NURSE', 'STAFF', 'MODERATOR'):
+            return True
+
+        return request.user.organization_memberships.filter(
+            status='ACTIVE'
+        ).exists()
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN'):
+            return True
+
+        target_org = getattr(obj, 'organization', None)
+        if not target_org and hasattr(obj, 'queue_session'):
+            target_org = obj.queue_session.organization
+
+        user_org = getattr(request.user, 'organization', None)
+        if user_org and target_org and user_org.id == target_org.id:
+            return True
+
+        if target_org:
+            return request.user.organization_memberships.filter(
+                organization=target_org,
+                status='ACTIVE'
+            ).exists()
+        return False
+
+class IsAssignedDoctorOrHospitalAdmin(permissions.BasePermission):
+    """Allows Hospital Admin to access all appointments, and Doctors to access only their assigned appointments."""
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN'):
+            return True
+
+        target_org = getattr(obj, 'organization', None)
+        user_org = getattr(request.user, 'organization', None)
+        user_role = getattr(request.user, 'role', '')
+
+        # Hospital Admin / Owner gets full access within organization
+        if (user_role in ('orgAdmin', 'organizationOwner', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER') or
+            request.user.organization_memberships.filter(organization=target_org, role__in=['ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'], status='ACTIVE').exists()):
+            return user_org and target_org and user_org.id == target_org.id
+
+        # Reception / Staff can manage check-in and queue
+        if user_role in ('receptionist', 'nurse', 'staff', 'RECEPTION', 'NURSE', 'STAFF'):
+            return user_org and target_org and user_org.id == target_org.id
+
+        # Doctor check
+        doctor = getattr(obj, 'doctor', None)
+        if hasattr(request.user, 'doctor_profile') and doctor:
+            return request.user.doctor_profile.id == doctor.id
+
+        return False
+

@@ -526,10 +526,16 @@ class PatientInformationReport(models.Model):
 
 class AppointmentStatus(models.TextChoices):
     REQUESTED = 'REQUESTED', 'Appointment Requested by Patient'
+    PENDING_HOSPITAL = 'PENDING_HOSPITAL', 'Pending Hospital Acceptance'
+    ACCEPTED = 'ACCEPTED', 'Accepted by Hospital Desk'
     CONFIRMED = 'CONFIRMED', 'Confirmed & Token Issued'
-    RESCHEDULED = 'RESCHEDULED', 'Rescheduled'
+    CHECKED_IN = 'CHECKED_IN', 'Patient Arrived & Checked In'
+    IN_CONSULTATION = 'IN_CONSULTATION', 'In Consultation with Doctor'
     COMPLETED = 'COMPLETED', 'Consultation Completed'
     CANCELLED = 'CANCELLED', 'Cancelled'
+    REJECTED = 'REJECTED', 'Rejected by Hospital'
+    NO_SHOW = 'NO_SHOW', 'Patient Did Not Arrive'
+    RESCHEDULED = 'RESCHEDULED', 'Rescheduled'
 
 class AppointmentRequest(models.Model):
     """Patient consultation request and booking record"""
@@ -545,7 +551,7 @@ class AppointmentRequest(models.Model):
     preferred_time_slot = models.CharField(max_length=50, default='Morning (09:00 AM - 01:00 PM)')
     consultation_mode = models.CharField(max_length=30, choices=ConsultationMode.choices, default=ConsultationMode.IN_PERSON)
     chief_complaint = models.TextField(blank=True, default='')
-    status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.REQUESTED)
+    status = models.CharField(max_length=30, choices=AppointmentStatus.choices, default=AppointmentStatus.REQUESTED)
     token_number = models.CharField(max_length=50, blank=True, default='')
     hospital_notes = models.TextField(blank=True, default='')
     idempotency_key = models.CharField(max_length=64, blank=True, null=True, db_index=True)
@@ -565,3 +571,109 @@ class AppointmentRequest(models.Model):
 
     def __str__(self):
         return f"Appt #{self.id}: {self.patient_name} with Dr. {self.doctor.name} ({self.preferred_date})"
+
+class DoctorAvailabilityStatus(models.TextChoices):
+    AVAILABLE = 'AVAILABLE', 'Available on Duty'
+    ON_LEAVE = 'ON_LEAVE', 'On Leave'
+    HOLIDAY = 'HOLIDAY', 'Hospital / Public Holiday'
+    EMERGENCY_DUTY = 'EMERGENCY_DUTY', 'Emergency Casualty Duty'
+    UNAVAILABLE = 'UNAVAILABLE', 'Unavailable'
+
+class DoctorAvailability(models.Model):
+    """Date-specific real-time doctor availability status override"""
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='availabilities')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='doctor_availabilities')
+    date = models.DateField()
+    status = models.CharField(max_length=30, choices=DoctorAvailabilityStatus.choices, default=DoctorAvailabilityStatus.AVAILABLE)
+    reason = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('doctor', 'organization', 'date')
+        ordering = ['date']
+
+    def __str__(self):
+        return f"{self.doctor.name} @ {self.organization.name} on {self.date}: {self.get_status_display()}"
+
+class ScheduleException(models.Model):
+    """Specific date cancellations or substitute assignments for recurring OPD schedules"""
+    affiliation = models.ForeignKey(DoctorAffiliation, on_delete=models.CASCADE, related_name='schedule_exceptions')
+    exception_date = models.DateField()
+    is_cancelled = models.BooleanField(default=True)
+    substitute_doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, null=True, blank=True, related_name='substitute_duties')
+    reason = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('affiliation', 'exception_date')
+        ordering = ['exception_date']
+
+    def __str__(self):
+        return f"Exception on {self.exception_date} for {self.affiliation}"
+
+class AppointmentStatusHistory(models.Model):
+    """Audit log of appointment lifecycle transitions"""
+    appointment = models.ForeignKey(AppointmentRequest, on_delete=models.CASCADE, related_name='status_history')
+    from_status = models.CharField(max_length=30)
+    to_status = models.CharField(max_length=30)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Appt #{self.appointment_id}: {self.from_status} -> {self.to_status} at {self.created_at}"
+
+class TokenStatus(models.TextChoices):
+    WAITING = 'WAITING', 'Waiting in Queue'
+    CALLED = 'CALLED', 'Called to OPD Room'
+    IN_CONSULTATION = 'IN_CONSULTATION', 'In Consultation with Doctor'
+    COMPLETED = 'COMPLETED', 'Consultation Completed'
+    SKIPPED = 'SKIPPED', 'Skipped / On Hold'
+    CANCELLED = 'CANCELLED', 'Cancelled / No Show'
+
+class QueueSession(models.Model):
+    """Live OPD Queue session for a doctor and room on a given day"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='queue_sessions')
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='queue_sessions')
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='queue_sessions')
+    schedule = models.ForeignKey(DoctorSchedule, on_delete=models.SET_NULL, null=True, blank=True)
+    session_date = models.DateField(default=timezone.now)
+    room_number = models.CharField(max_length=50, default='OPD Room 102')
+    current_token_number = models.IntegerField(default=0)
+    total_tokens_issued = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-session_date', '-started_at']
+
+    def __str__(self):
+        return f"Queue for Dr. {self.doctor.name} on {self.session_date} (Current: {self.current_token_number}/{self.total_tokens_issued})"
+
+class QueueToken(models.Model):
+    """Patient queue token record linked to live queue session and appointment"""
+    queue_session = models.ForeignKey(QueueSession, on_delete=models.CASCADE, related_name='tokens')
+    appointment = models.ForeignKey(AppointmentRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='queue_tokens')
+    token_number = models.IntegerField()
+    token_label = models.CharField(max_length=20, default='A-01')
+    patient_name = models.CharField(max_length=150)
+    patient_phone = models.CharField(max_length=20)
+    status = models.CharField(max_length=30, choices=TokenStatus.choices, default=TokenStatus.WAITING)
+    called_at = models.DateTimeField(null=True, blank=True)
+    consultation_started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    clinical_notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['token_number']
+        unique_together = ('queue_session', 'token_number')
+
+    def __str__(self):
+        return f"Token {self.token_label} (#{self.token_number}) - {self.patient_name} [{self.get_status_display()}]"
+
