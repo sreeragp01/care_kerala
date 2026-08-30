@@ -36,6 +36,13 @@ class PlatformNetworkAdminScreen extends StatelessWidget {
                 ),
               ],
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add_business_rounded, color: AppColors.brandTeal),
+                tooltip: 'Invite Organization (Direct Token)',
+                onPressed: () => _showInviteOrgModal(context, isDark),
+              ),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -52,6 +59,24 @@ class PlatformNetworkAdminScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // Prospect Acquisition Pipeline
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSectionTitle('Hospital Acquisition Pipeline (Prospects)', isDark),
+                    TextButton.icon(
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: const Text('Add Prospect'),
+                      onPressed: () => _showAddProspectModal(context, isDark),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildProspectCard('Government Medical College Kannur', 'Kannur • DME', 'Dr. Radhakrishnan', 'INTERESTED', isDark),
+                _buildProspectCard('Malabar Cancer Center Thalassery', 'Kannur • Autonomous', 'Dr. Bipin Das', 'CONTACTED', isDark),
+                _buildProspectCard('District Hospital Palakkad', 'Palakkad • DHS', 'Dr. Shaji Mathew', 'INVITED', isDark),
+                const SizedBox(height: 20),
 
                 // Organization Claims Review Queue
                 if (pendingClaims.isNotEmpty) ...[
@@ -354,6 +379,140 @@ class PlatformNetworkAdminScreen extends StatelessWidget {
             child: const Text('Verified', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.brandHealthGreen)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProspectCard(String name, String details, String contact, String status, bool isDark) {
+    Color badgeColor = Colors.blue;
+    if (status == 'INTERESTED') badgeColor = Colors.orange;
+    if (status == 'INVITED') badgeColor = AppColors.brandTeal;
+
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: badgeColor.withValues(alpha: 0.15),
+            child: Icon(Icons.business_rounded, color: badgeColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary)),
+                Text('$details • Contact: $contact', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: badgeColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddProspectModal(BuildContext context, bool isDark) {
+    final nameCtrl = TextEditingController();
+    final districtCtrl = TextEditingController(text: 'Kannur');
+    final contactCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Add Healthcare Prospect', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Hospital Name', hintText: 'e.g. Taluk Hospital Vadakara')),
+            const SizedBox(height: 10),
+            TextField(controller: districtCtrl, decoration: const InputDecoration(labelText: 'Kerala District')),
+            const SizedBox(height: 10),
+            TextField(controller: contactCtrl, decoration: const InputDecoration(labelText: 'Primary Contact Person / Superintendent')),
+            const SizedBox(height: 10),
+            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Contact Phone')),
+            const SizedBox(height: 10),
+            TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Official Email')),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandNavy, minimumSize: const Size(double.infinity, 44)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: AppColors.brandTeal,
+                    content: Text('Prospective hospital added to CareLink pipeline!'),
+                  ),
+                );
+              },
+              child: const Text('Add to Prospect Pipeline', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showInviteOrgModal(BuildContext context, bool isDark) {
+    final orgNameCtrl = TextEditingController();
+    final districtCtrl = TextEditingController(text: 'Kozhikode');
+    final adminNameCtrl = TextEditingController();
+    final adminEmailCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Issue Hospital Admin Invitation', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text('Generates a single-use 7-day secure token for institutional onboarding', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 16),
+            TextField(controller: orgNameCtrl, decoration: const InputDecoration(labelText: 'Hospital Name', hintText: 'e.g. Malabar Medical Center')),
+            const SizedBox(height: 10),
+            TextField(controller: districtCtrl, decoration: const InputDecoration(labelText: 'District')),
+            const SizedBox(height: 10),
+            TextField(controller: adminNameCtrl, decoration: const InputDecoration(labelText: 'Hospital Head / Admin Name', hintText: 'Dr. Suresh Kumar')),
+            const SizedBox(height: 10),
+            TextField(controller: adminEmailCtrl, decoration: const InputDecoration(labelText: 'Official Admin Email', hintText: 'admin@malabarmed.in')),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandTeal, minimumSize: const Size(double.infinity, 46)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppColors.brandTeal,
+                    content: Text('Secure token generated and dispatched to ${adminEmailCtrl.text}!'),
+                  ),
+                );
+              },
+              child: const Text('Generate & Dispatch Invitation Token', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
   }

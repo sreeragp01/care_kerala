@@ -87,6 +87,8 @@ class NetworkRBACAndIsolationTests(TestCase):
             organization=self.org_a,
             organization_type='HOSPITAL',
             verification_status='VERIFIED',
+            lifecycle_status='PUBLISHED',
+            is_published=True,
             district='Kozhikode',
             phone=self.org_a.phone,
             emergency_phone='+914952800999',

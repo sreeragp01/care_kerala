@@ -31,6 +31,53 @@ class VerificationStatus(models.TextChoices):
     VERIFIED = 'VERIFIED', 'CareLink Verified (Badge Active)'
     EXPIRED = 'EXPIRED', 'Verification Expired (Re-verification Required)'
 
+class OrganizationLifecycleStatus(models.TextChoices):
+    PROSPECT = 'PROSPECT', 'Prospect Under Discovery'
+    INVITED = 'INVITED', 'Invited (Pending Admin Activation)'
+    ACTIVATED = 'ACTIVATED', 'Activated (Account Setup Complete)'
+    PROFILE_INCOMPLETE = 'PROFILE_INCOMPLETE', 'Profile Setup Incomplete'
+    SUBMITTED_FOR_REVIEW = 'SUBMITTED_FOR_REVIEW', 'Submitted for CareLink Review'
+    UNDER_REVIEW = 'UNDER_REVIEW', 'Under CareLink Audit Review'
+    ACTION_REQUIRED = 'ACTION_REQUIRED', 'Action Required (Changes Requested)'
+    APPROVED = 'APPROVED', 'Approved by CareLink'
+    PUBLISHED = 'PUBLISHED', 'Published to Public Directory'
+    SUSPENDED = 'SUSPENDED', 'Suspended'
+
+class HealthcareProspectStatus(models.TextChoices):
+    CONTACT_NOT_STARTED = 'CONTACT_NOT_STARTED', 'Contact Not Started'
+    CONTACTED = 'CONTACTED', 'Contacted'
+    INTERESTED = 'INTERESTED', 'Interested in CareLink Network'
+    INVITED = 'INVITED', 'Invitation Issued'
+    ACTIVATED = 'ACTIVATED', 'Admin Activated'
+    PROFILE_COMPLETED = 'PROFILE_COMPLETED', 'Profile Completed'
+    VERIFIED = 'VERIFIED', 'Verified & Published'
+    DECLINED = 'DECLINED', 'Declined'
+
+class InvitationStatus(models.TextChoices):
+    PENDING = 'PENDING', 'Pending Activation'
+    ACCEPTED = 'ACCEPTED', 'Accepted & Activated'
+    EXPIRED = 'EXPIRED', 'Expired'
+    REVOKED = 'REVOKED', 'Revoked'
+
+class MembershipRole(models.TextChoices):
+    ORGANIZATION_OWNER = 'ORGANIZATION_OWNER', 'Hospital / Organization Owner'
+    ORGANIZATION_ADMIN = 'ORGANIZATION_ADMIN', 'Hospital Organization Administrator'
+    DEPARTMENT_MODERATOR = 'DEPARTMENT_MODERATOR', 'Departmental Content Moderator'
+    DOCTOR = 'DOCTOR', 'Doctor / Specialist Consultant'
+    NURSE = 'NURSE', 'Clinical / Palliative Nurse'
+    RECEPTION = 'RECEPTION', 'Reception & Desk Staff'
+    PHARMACIST = 'PHARMACIST', 'Pharmacist'
+    STAFF = 'STAFF', 'Healthcare Staff'
+    LIMITED_STAFF = 'LIMITED_STAFF', 'Limited Staff Member'
+
+class MembershipStatus(models.TextChoices):
+    INVITED = 'INVITED', 'Invited (Pending Acceptance)'
+    PENDING_APPROVAL = 'PENDING_APPROVAL', 'Pending Hospital Admin Approval'
+    ACTIVE = 'ACTIVE', 'Active Member'
+    REJECTED = 'REJECTED', 'Membership Rejected'
+    SUSPENDED = 'SUSPENDED', 'Membership Suspended'
+    REVOKED = 'REVOKED', 'Membership Access Revoked'
+
 class Specialty(models.Model):
     """Centralized medical specialty taxonomy across Kerala"""
     name = models.CharField(max_length=120, unique=True)
@@ -152,6 +199,18 @@ class HealthcareProfile(models.Model):
         related_name='verified_healthcare_profiles'
     )
     
+    # Lifecycle & Publication State
+    lifecycle_status = models.CharField(
+        max_length=40,
+        choices=OrganizationLifecycleStatus.choices,
+        default=OrganizationLifecycleStatus.INVITED
+    )
+    profile_completeness_percentage = models.IntegerField(default=0)
+    is_published = models.BooleanField(default=False)
+    review_notes = models.TextField(blank=True, default='')
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    
     # Catalogs
     specialties = models.ManyToManyField(Specialty, blank=True, related_name='profiles')
     services = models.ManyToManyField(HealthcareService, blank=True, related_name='profiles')
@@ -182,6 +241,89 @@ class HealthcareProfile(models.Model):
 
     def __str__(self):
         return f"{self.organization.name} Profile ({self.get_organization_type_display()} • {self.district})"
+
+class HealthcareProspect(models.Model):
+    """CareLink internal pipeline tracker for discovering & contacting prospective hospitals"""
+    name = models.CharField(max_length=255)
+    district = models.CharField(max_length=100)
+    organization_type = models.CharField(max_length=50, choices=OrganizationType.choices, default=OrganizationType.HOSPITAL)
+    ownership_type = models.CharField(max_length=50, choices=OwnershipType.choices, default=OwnershipType.PRIVATE)
+    contact_person = models.CharField(max_length=150)
+    contact_designation = models.CharField(max_length=150, default='Medical Director / Superintendent')
+    contact_phone = models.CharField(max_length=20)
+    contact_email = models.EmailField()
+    status = models.CharField(max_length=40, choices=HealthcareProspectStatus.choices, default=HealthcareProspectStatus.CONTACT_NOT_STARTED)
+    internal_notes = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_prospects')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.district}) [{self.get_status_display()}]"
+
+class OrganizationInvitation(models.Model):
+    """Secure, single-use token invitation issued by CareLink to an initial Organization Admin"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='invitations')
+    prospect = models.ForeignKey(HealthcareProspect, on_delete=models.SET_NULL, null=True, blank=True, related_name='invitations')
+    recipient_name = models.CharField(max_length=150)
+    recipient_email = models.EmailField()
+    recipient_phone = models.CharField(max_length=20)
+    recipient_designation = models.CharField(max_length=150, default='Authorized Hospital Administrator')
+    token = models.CharField(max_length=128, unique=True, db_index=True)
+    status = models.CharField(max_length=20, choices=InvitationStatus.choices, default=InvitationStatus.PENDING)
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='issued_org_invitations')
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Invite for {self.recipient_name} ({self.organization.name}) [{self.status}]"
+
+class OrganizationMembership(models.Model):
+    """Core relation connecting a User to an Organization with sovereign hospital admin approval"""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='organization_memberships')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='memberships')
+    role = models.CharField(max_length=40, choices=MembershipRole.choices, default=MembershipRole.STAFF)
+    status = models.CharField(max_length=30, choices=MembershipStatus.choices, default=MembershipStatus.PENDING_APPROVAL)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='memberships')
+    designation = models.CharField(max_length=150, blank=True, default='')
+    medical_registration_number = models.CharField(max_length=100, blank=True, default='')
+    permissions = models.JSONField(default=dict, blank=True)
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_team_invitations')
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_memberships')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    joined_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'organization')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} at {self.organization.name} ({self.get_role_display()} - {self.get_status_display()})"
+
+class HospitalTeamInvitation(models.Model):
+    """Invitation issued by a Hospital Admin to add doctors, moderators, or staff to their hospital"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='team_invitations')
+    recipient_name = models.CharField(max_length=150)
+    recipient_email = models.EmailField()
+    recipient_phone = models.CharField(max_length=20, blank=True, default='')
+    role = models.CharField(max_length=40, choices=MembershipRole.choices, default=MembershipRole.STAFF)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    designation = models.CharField(max_length=150, blank=True, default='')
+    token = models.CharField(max_length=128, unique=True, db_index=True)
+    status = models.CharField(max_length=20, choices=InvitationStatus.choices, default=InvitationStatus.PENDING)
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='issued_team_invitations')
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Team Invite: {self.recipient_name} -> {self.organization.name} ({self.get_role_display()})"
 
 class Doctor(models.Model):
     """Doctor / Specialist entity (Independent practitioner profile)"""

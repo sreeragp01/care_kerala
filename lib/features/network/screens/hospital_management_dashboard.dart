@@ -20,7 +20,7 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -66,9 +66,11 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
               unselectedLabelColor: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
               indicatorColor: AppColors.brandTeal,
               indicatorWeight: 3,
+              isScrollable: true,
               tabs: [
                 const Tab(icon: Icon(Icons.dashboard_rounded, size: 18), text: 'Overview'),
                 const Tab(icon: Icon(Icons.medical_services_rounded, size: 18), text: 'Doctors & OPD'),
+                const Tab(icon: Icon(Icons.groups_rounded, size: 18), text: 'Hospital Team'),
                 Tab(
                   icon: Badge(
                     isLabelVisible: pendingCr > 0,
@@ -85,6 +87,7 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
             children: [
               _buildOverviewTab(state, isDark),
               _buildDoctorsTab(state, isDark),
+              _buildTeamTab(state, isDark),
               _buildChangeRequestsTab(state, isDark),
             ],
           ),
@@ -248,6 +251,250 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTeamTab(AppStateProvider state, bool isDark) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      children: [
+        // Team Management Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hospital Team & Staff',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  'Sovereign member approvals and role scopes',
+                  style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                ),
+              ],
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandTeal),
+              icon: const Icon(Icons.person_add_rounded, size: 16, color: Colors.white),
+              label: const Text('Invite Member', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              onPressed: () => _showInviteTeamMemberModal(context, state, isDark),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Sovereign Pending Approval Queue
+        Text(
+          'Pending Admin Approvals (Queue)',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.orange.shade700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GlassCard(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: Colors.orange.withValues(alpha: 0.2),
+                  child: const Icon(Icons.person_outline, color: Colors.orange),
+                ),
+                title: const Text('Dr. Priya Varma', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                subtitle: const Text('Consultant Cardiologist • Reg: TCMC/64291/K\nRequested: Today (31 Aug 2026)', style: TextStyle(fontSize: 12)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.red),
+                      tooltip: 'Reject',
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Membership request rejected.')),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.check_circle_rounded, color: AppColors.brandHealthGreen),
+                      tooltip: 'Approve as Active Member',
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            backgroundColor: AppColors.brandTeal,
+                            content: Text('Dr. Priya Varma approved as Active Hospital Team Member!'),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Active Team Roster
+        Text(
+          'Active Team Members',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildMemberCard('Dr. Narayanan Kutty', 'Head of Oncology • Lead Consultant', 'Doctor', 'ACTIVE', isDark),
+        _buildMemberCard('Arjun Das', 'Department Content Moderator', 'Moderator', 'ACTIVE', isDark),
+        _buildMemberCard('Sujith Kumar', 'OPD Reception & Token Desk', 'Reception Staff', 'ACTIVE', isDark),
+        _buildMemberCard('Anjali Nair', 'Palliative Community Nurse', 'Nurse', 'ACTIVE', isDark),
+      ],
+    );
+  }
+
+  Widget _buildMemberCard(String name, String designation, String role, String status, bool isDark) {
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.brandTeal.withValues(alpha: 0.15),
+            child: Text(name[0], style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.brandTeal)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandTeal.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(role, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.brandTeal)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(designation, style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, size: 20),
+            onSelected: (val) {
+              if (val == 'REVOKE') {
+                _showRevokeDialog(name);
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(value: 'PERMISSIONS', child: Text('Manage Permissions')),
+              const PopupMenuItem(value: 'REVOKE', child: Text('Revoke Access', style: TextStyle(color: Colors.red))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRevokeDialog(String name) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Revoke Hospital Access?'),
+        content: Text('Revoking access will remove $name from this hospital\'s team. Their user account will be preserved.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Access revoked for $name.')),
+              );
+            },
+            child: const Text('Revoke Access', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInviteTeamMemberModal(BuildContext context, AppStateProvider state, bool isDark) {
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final desigCtrl = TextEditingController();
+    String selectedRole = 'DOCTOR';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Invite Hospital Team Member', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Issues a secure invitation token for staff / practitioner onboarding', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 16),
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Full Name', hintText: 'e.g. Dr. Anand Sharma')),
+              const SizedBox(height: 12),
+              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Official Email', hintText: 'anand@hospital.org')),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: selectedRole,
+                items: const [
+                  DropdownMenuItem(value: 'DOCTOR', child: Text('Doctor / Specialist Consultant')),
+                  DropdownMenuItem(value: 'DEPARTMENT_MODERATOR', child: Text('Department Moderator')),
+                  DropdownMenuItem(value: 'NURSE', child: Text('Clinical / Palliative Nurse')),
+                  DropdownMenuItem(value: 'RECEPTION', child: Text('Reception Desk Staff')),
+                  DropdownMenuItem(value: 'STAFF', child: Text('General Healthcare Staff')),
+                ],
+                onChanged: (v) => setModalState(() => selectedRole = v!),
+                decoration: const InputDecoration(labelText: 'Role Scope'),
+              ),
+              const SizedBox(height: 12),
+              TextField(controller: desigCtrl, decoration: const InputDecoration(labelText: 'Designation / Department', hintText: 'e.g. Senior Pediatrician')),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandTeal, minimumSize: const Size(double.infinity, 46)),
+                onPressed: () {
+                  if (nameCtrl.text.isNotEmpty && emailCtrl.text.isNotEmpty) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppColors.brandTeal,
+                        content: Text('Invitation token generated and sent to ${emailCtrl.text}.'),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Send Team Invitation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

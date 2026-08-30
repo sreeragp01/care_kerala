@@ -483,3 +483,207 @@ class AppointmentRequestModel {
     );
   }
 }
+
+class HealthcareProspectModel {
+  final String id;
+  final String name;
+  final String district;
+  final String organizationType;
+  final String ownershipType;
+  final String contactPerson;
+  final String contactDesignation;
+  final String contactPhone;
+  final String contactEmail;
+  final String status;
+  final String statusDisplay;
+  final String internalNotes;
+  final String createdByUsername;
+  final String createdAt;
+
+  const HealthcareProspectModel({
+    required this.id,
+    required this.name,
+    required this.district,
+    this.organizationType = 'Hospital',
+    this.ownershipType = 'Private',
+    required this.contactPerson,
+    this.contactDesignation = 'Medical Superintendent',
+    required this.contactPhone,
+    required this.contactEmail,
+    this.status = 'CONTACTED',
+    this.statusDisplay = 'Contacted',
+    this.internalNotes = '',
+    this.createdByUsername = 'admin',
+    this.createdAt = '',
+  });
+
+  factory HealthcareProspectModel.fromJson(Map<String, dynamic> json) {
+    return HealthcareProspectModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      district: json['district'] ?? 'Kozhikode',
+      organizationType: json['organization_type'] ?? 'Hospital',
+      ownershipType: json['ownership_type'] ?? 'Private',
+      contactPerson: json['contact_person'] ?? '',
+      contactDesignation: json['contact_designation'] ?? 'Medical Superintendent',
+      contactPhone: json['contact_phone'] ?? '',
+      contactEmail: json['contact_email'] ?? '',
+      status: json['status'] ?? 'CONTACTED',
+      statusDisplay: json['status_display'] ?? json['status'] ?? 'Contacted',
+      internalNotes: json['internal_notes'] ?? '',
+      createdByUsername: json['created_by_username'] ?? 'admin',
+      createdAt: json['created_at'] ?? '',
+    );
+  }
+}
+
+class OrganizationInvitationModel {
+  final String id;
+  final String organizationId;
+  final String organizationName;
+  final String recipientName;
+  final String recipientEmail;
+  final String recipientPhone;
+  final String recipientDesignation;
+  final String token;
+  final String status;
+  final String statusDisplay;
+  final String expiresAt;
+
+  const OrganizationInvitationModel({
+    required this.id,
+    required this.organizationId,
+    required this.organizationName,
+    required this.recipientName,
+    required this.recipientEmail,
+    this.recipientPhone = '',
+    this.recipientDesignation = 'Hospital Administrator',
+    required this.token,
+    this.status = 'PENDING',
+    this.statusDisplay = 'Pending Activation',
+    this.expiresAt = '',
+  });
+
+  factory OrganizationInvitationModel.fromJson(Map<String, dynamic> json) {
+    return OrganizationInvitationModel(
+      id: json['id']?.toString() ?? '',
+      organizationId: json['organization']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? 'Healthcare Facility',
+      recipientName: json['recipient_name'] ?? '',
+      recipientEmail: json['recipient_email'] ?? '',
+      recipientPhone: json['recipient_phone'] ?? '',
+      recipientDesignation: json['recipient_designation'] ?? 'Hospital Administrator',
+      token: json['token'] ?? '',
+      status: json['status'] ?? 'PENDING',
+      statusDisplay: json['status_display'] ?? 'Pending',
+      expiresAt: json['expires_at'] ?? '',
+    );
+  }
+}
+
+class OrganizationMembershipModel {
+  final String id;
+  final String userId;
+  final String username;
+  final String email;
+  final String fullName;
+  final String organizationId;
+  final String organizationName;
+  final String role;
+  final String roleDisplay;
+  final String status;
+  final String statusDisplay;
+  final String departmentName;
+  final String designation;
+  final String medicalRegistrationNumber;
+  final String approvedByUsername;
+  final String joinedAt;
+
+  const OrganizationMembershipModel({
+    required this.id,
+    required this.userId,
+    required this.username,
+    required this.email,
+    this.fullName = '',
+    required this.organizationId,
+    required this.organizationName,
+    required this.role,
+    this.roleDisplay = 'Staff',
+    required this.status,
+    this.statusDisplay = 'Active',
+    this.departmentName = '',
+    this.designation = '',
+    this.medicalRegistrationNumber = '',
+    this.approvedByUsername = '',
+    this.joinedAt = '',
+  });
+
+  factory OrganizationMembershipModel.fromJson(Map<String, dynamic> json) {
+    return OrganizationMembershipModel(
+      id: json['id']?.toString() ?? '',
+      userId: json['user']?.toString() ?? '',
+      username: json['username'] ?? '',
+      email: json['email'] ?? '',
+      fullName: json['full_name'] ?? json['username'] ?? '',
+      organizationId: json['organization']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? '',
+      role: json['role'] ?? 'STAFF',
+      roleDisplay: json['role_display'] ?? json['role'] ?? 'Staff',
+      status: json['status'] ?? 'ACTIVE',
+      statusDisplay: json['status_display'] ?? json['status'] ?? 'Active',
+      departmentName: json['department_name'] ?? '',
+      designation: json['designation'] ?? '',
+      medicalRegistrationNumber: json['medical_registration_number'] ?? '',
+      approvedByUsername: json['approved_by_username'] ?? '',
+      joinedAt: json['joined_at'] ?? json['created_at'] ?? '',
+    );
+  }
+}
+
+class HospitalTeamInvitationModel {
+  final String id;
+  final String organizationName;
+  final String recipientName;
+  final String recipientEmail;
+  final String recipientPhone;
+  final String role;
+  final String roleDisplay;
+  final String departmentName;
+  final String designation;
+  final String token;
+  final String status;
+  final String expiresAt;
+
+  const HospitalTeamInvitationModel({
+    required this.id,
+    required this.organizationName,
+    required this.recipientName,
+    required this.recipientEmail,
+    this.recipientPhone = '',
+    required this.role,
+    this.roleDisplay = 'Staff',
+    this.departmentName = '',
+    this.designation = '',
+    required this.token,
+    this.status = 'PENDING',
+    this.expiresAt = '',
+  });
+
+  factory HospitalTeamInvitationModel.fromJson(Map<String, dynamic> json) {
+    return HospitalTeamInvitationModel(
+      id: json['id']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? '',
+      recipientName: json['recipient_name'] ?? '',
+      recipientEmail: json['recipient_email'] ?? '',
+      recipientPhone: json['recipient_phone'] ?? '',
+      role: json['role'] ?? 'STAFF',
+      roleDisplay: json['role_display'] ?? json['role'] ?? 'Staff',
+      departmentName: json['department_name'] ?? '',
+      designation: json['designation'] ?? '',
+      token: json['token'] ?? '',
+      status: json['status'] ?? 'PENDING',
+      expiresAt: json['expires_at'] ?? '',
+    );
+  }
+}
+

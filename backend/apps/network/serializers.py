@@ -6,6 +6,10 @@ from .models import (
     HealthcareService,
     Facility,
     HealthcareProfile,
+    HealthcareProspect,
+    OrganizationInvitation,
+    OrganizationMembership,
+    HospitalTeamInvitation,
     Doctor,
     DoctorAffiliation,
     DoctorSchedule,
@@ -250,3 +254,45 @@ class AppointmentRequestSerializer(serializers.ModelSerializer):
         if value is not None and (value < 0 or value > 125):
             raise serializers.ValidationError("Patient age must be between 0 and 125.")
         return value
+
+class HealthcareProspectSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = HealthcareProspect
+        fields = '__all__'
+
+class OrganizationInvitationSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    invited_by_username = serializers.CharField(source='invited_by.username', read_only=True)
+
+    class Meta:
+        model = OrganizationInvitation
+        fields = '__all__'
+
+class OrganizationMembershipSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+    full_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    approved_by_username = serializers.CharField(source='approved_by.username', read_only=True)
+
+    class Meta:
+        model = OrganizationMembership
+        fields = '__all__'
+
+class HospitalTeamInvitationSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    invited_by_username = serializers.CharField(source='invited_by.username', read_only=True)
+
+    class Meta:
+        model = HospitalTeamInvitation
+        fields = '__all__'

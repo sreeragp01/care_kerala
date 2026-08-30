@@ -13,6 +13,18 @@ from .views import (
     OrganizationDocumentDetailView,
     PatientInformationReportView,
     PlatformAdminDashboardView,
+    ProspectListCreateView,
+    PlatformOrganizationInviteAdminView,
+    CareLinkReviewDecisionView,
+    InvitationValidateView,
+    InvitationActivateView,
+    HospitalSetupWizardView,
+    HospitalSubmitReviewView,
+    HospitalTeamListView,
+    HospitalTeamPendingApprovalListView,
+    HospitalTeamInviteView,
+    HospitalTeamApprovalDecisionView,
+    HospitalTeamMemberRevokeView,
 )
 
 urlpatterns = [
@@ -26,6 +38,26 @@ urlpatterns = [
     path('organizations/claim/', ClaimOrganizationView.as_view(), name='claim_organization'),
     path('organizations/claims/<int:pk>/review/', ClaimOrganizationReviewView.as_view(), name='claim_organization_review'),
     
+    # Platform Governance & Prospect Pipeline
+    path('platform/prospects/', ProspectListCreateView.as_view(), name='platform_prospects'),
+    path('platform/organizations/invite-admin/', PlatformOrganizationInviteAdminView.as_view(), name='platform_invite_admin'),
+    path('admin/organizations/<int:pk>/review-decision/', CareLinkReviewDecisionView.as_view(), name='carelink_review_decision'),
+    
+    # Invitation & Account Activation
+    path('invitations/<str:token>/validate/', InvitationValidateView.as_view(), name='invitation_validate'),
+    path('invitations/<str:token>/activate/', InvitationActivateView.as_view(), name='invitation_activate'),
+    
+    # 10-Step Hospital Setup Wizard
+    path('onboarding/wizard/', HospitalSetupWizardView.as_view(), name='hospital_setup_wizard'),
+    path('onboarding/submit/', HospitalSubmitReviewView.as_view(), name='hospital_submit_review'),
+    
+    # Hospital Team Governance & Approvals
+    path('team/', HospitalTeamListView.as_view(), name='hospital_team_list'),
+    path('team/pending/', HospitalTeamPendingApprovalListView.as_view(), name='hospital_team_pending'),
+    path('team/invite/', HospitalTeamInviteView.as_view(), name='hospital_team_invite'),
+    path('team/<int:pk>/decision/', HospitalTeamApprovalDecisionView.as_view(), name='hospital_team_decision'),
+    path('team/<int:pk>/revoke/', HospitalTeamMemberRevokeView.as_view(), name='hospital_team_revoke'),
+
     # Governance & Change Requests
     path('change-requests/', ChangeRequestListView.as_view(), name='change_requests_list'),
     path('change-requests/<int:pk>/review/', ChangeRequestReviewView.as_view(), name='change_request_review'),
@@ -39,3 +71,4 @@ urlpatterns = [
     # Platform Administration
     path('admin/dashboard/', PlatformAdminDashboardView.as_view(), name='network_admin_dashboard'),
 ]
+

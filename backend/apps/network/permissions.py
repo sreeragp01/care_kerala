@@ -56,6 +56,41 @@ class IsOrganizationModeratorOrAdmin(permissions.BasePermission):
         user_org = getattr(request.user, 'organization', None)
         return user_org and target_org and user_org.id == target_org.id
 
+class IsHospitalTeamAdmin(permissions.BasePermission):
+    """Allows access only to the Hospital Admin / Owner of that specific hospital or Platform Super Admin."""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN'):
+            return True
+
+        # Check user role or active admin membership
+        user_role = getattr(request.user, 'role', '')
+        if user_role in ('orgAdmin', 'organizationOwner', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'):
+            return True
+
+        return request.user.organization_memberships.filter(
+            role__in=['ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'],
+            status='ACTIVE'
+        ).exists()
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN'):
+            return True
+
+        target_org = getattr(obj, 'organization', obj)
+        user_org = getattr(request.user, 'organization', None)
+
+        if user_org and target_org and user_org.id == target_org.id:
+            return True
+
+        return request.user.organization_memberships.filter(
+            organization=target_org,
+            role__in=['ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'],
+            status='ACTIVE'
+        ).exists()
+
 class IsDocumentAuthorizedTenant(permissions.BasePermission):
     """Strict object-level permission for accessing institutional compliance & verification documents."""
 
