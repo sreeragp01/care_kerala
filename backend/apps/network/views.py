@@ -1,5 +1,6 @@
 from rest_framework import status, views, permissions
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from django.utils import timezone
 from .models import (
@@ -36,8 +37,14 @@ from .permissions import (
     IsPlatformAdminOrSuperAdmin,
     IsOrganizationAdminOrOwner,
     IsOrganizationModeratorOrAdmin,
+    IsDocumentAuthorizedTenant,
 )
 from apps.organizations.models import Organization
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class PublicDirectoryListView(views.APIView):
     """Public Search API for Hospitals, Clinics, and Healthcare Providers across Kerala"""
@@ -95,6 +102,12 @@ class PublicDirectoryListView(views.APIView):
                 Q(specialties__name__icontains=q) |
                 Q(services__name__icontains=q)
             ).distinct()
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        if page is not None:
+            serializer = HealthcareProfilePublicSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
 
         serializer = HealthcareProfilePublicSerializer(queryset, many=True)
         return Response({
@@ -154,6 +167,12 @@ class DoctorDirectoryListView(views.APIView):
                 Q(primary_specialty__name__icontains=search) |
                 Q(affiliations__organization__name__icontains=search)
             ).distinct()
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(queryset.distinct(), request)
+        if page is not None:
+            serializer = DoctorPublicSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
 
         serializer = DoctorPublicSerializer(queryset.distinct(), many=True)
         return Response({
@@ -385,17 +404,32 @@ class ChangeRequestReviewView(views.APIView):
             return Response({'error': 'Invalid action. Must be APPROVE or REJECT.'}, status=status.HTTP_400_BAD_REQUEST)
 
 class AppointmentRequestCreateView(views.APIView):
-    """Patient consultation request"""
+    """Patient consultation request with idempotency protection against duplicate submissions"""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        idempotency_key = request.data.get('idempotency_key')
+        if idempotency_key:
+            existing = AppointmentRequest.objects.filter(
+                idempotency_key=idempotency_key,
+                created_at__gte=timezone.now() - timezone.timedelta(hours=24)
+            ).first()
+            if existing:
+                return Response({
+                    'success': True,
+                    'message': 'Appointment request already received (idempotent duplicate suppressed).',
+                    'appointment_id': existing.id,
+                    'is_duplicate_suppressed': True
+                }, status=status.HTTP_200_OK)
+
         serializer = AppointmentRequestSerializer(data=request.data)
         if serializer.is_valid():
             appointment = serializer.save(status='REQUESTED')
             return Response({
                 'success': True,
                 'message': 'Appointment request submitted. The hospital desk will confirm your token.',
-                'appointment_id': appointment.id
+                'appointment_id': appointment.id,
+                'is_duplicate_suppressed': False
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -419,14 +453,31 @@ class AppointmentStatusUpdateView(views.APIView):
             return Response({'error': 'Invalid status.'}, status=status.HTTP_400_BAD_REQUEST)
 
         appointment.status = new_status
+        appointment.responded_at = timezone.now()
+        appointment.responded_by = request.user
         appointment.save()
 
         return Response({
             'success': True,
             'message': f"Appointment status updated to '{new_status}'.",
             'appointment_id': appointment.id,
-            'status': appointment.status
+            'status': appointment.status,
+            'responded_at': appointment.responded_at
         })
+
+class OrganizationDocumentDetailView(views.APIView):
+    """Retrieve private compliance/license documents (Strict Object-Level Tenant Isolation)"""
+    permission_classes = [IsDocumentAuthorizedTenant]
+
+    def get(self, request, pk):
+        try:
+            doc = OrganizationDocument.objects.select_related('organization').get(id=pk)
+        except OrganizationDocument.DoesNotExist:
+            return Response({'error': 'Document not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, doc)
+        serializer = OrganizationDocumentSerializer(doc)
+        return Response(serializer.data)
 
 class PatientInformationReportView(views.APIView):
     """Submit community feedback on outdated/incorrect information"""

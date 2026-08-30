@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
 from apps.organizations.models import Organization
 
 class OrganizationType(models.TextChoices):
@@ -109,8 +111,18 @@ class HealthcareProfile(models.Model):
     address = models.TextField(blank=True, default='')
     district = models.CharField(max_length=100, default='Kozhikode')
     pincode = models.CharField(max_length=10, blank=True, default='673001')
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, default=11.2588)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, default=75.7804)
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        default=11.2588,
+        validators=[MinValueValidator(Decimal('-90.0')), MaxValueValidator(Decimal('90.0'))]
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        default=75.7804,
+        validators=[MinValueValidator(Decimal('-180.0')), MaxValueValidator(Decimal('180.0'))]
+    )
     phone = models.CharField(max_length=20, blank=True, default='')
     email = models.EmailField(blank=True, default='')
     website = models.URLField(blank=True, default='')
@@ -120,8 +132,8 @@ class HealthcareProfile(models.Model):
     emergency_phone = models.CharField(max_length=20, blank=True, default='')
     trauma_care_available = models.BooleanField(default=False)
     ambulance_available = models.BooleanField(default=False)
-    total_beds = models.IntegerField(default=0)
-    icu_beds = models.IntegerField(default=0)
+    total_beds = models.IntegerField(default=0, validators=[MinValueValidator(0)])
+    icu_beds = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     
     # Branding & Description
     description = models.TextField(blank=True, default='')
@@ -164,6 +176,9 @@ class HealthcareProfile(models.Model):
             return 'REVIEW_RECOMMENDED' # 🟡 Review recommended (31-90 days)
         else:
             return 'VERIFICATION_REQUIRED' # 🟠 Verification required (90+ days)
+
+    class Meta:
+        ordering = ['-profile_completeness_score', 'id']
 
     def __str__(self):
         return f"{self.organization.name} Profile ({self.get_organization_type_display()} • {self.district})"
@@ -391,6 +406,15 @@ class AppointmentRequest(models.Model):
     status = models.CharField(max_length=20, choices=AppointmentStatus.choices, default=AppointmentStatus.REQUESTED)
     token_number = models.CharField(max_length=50, blank=True, default='')
     hospital_notes = models.TextField(blank=True, default='')
+    idempotency_key = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    responded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responded_appointments'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

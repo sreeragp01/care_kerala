@@ -10,6 +10,7 @@ from apps.network.models import (
     DoctorAffiliation,
     DoctorSchedule,
     ChangeRequest,
+    OrganizationDocument,
     ClaimOrganizationRequest,
     AppointmentRequest,
 )
@@ -252,3 +253,103 @@ class NetworkRBACAndIsolationTests(TestCase):
         claimant.refresh_from_db()
         self.assertEqual(claimant.organization, self.org_b)
         self.assertEqual(claimant.role, 'orgAdmin')
+
+    def test_document_object_level_security_unauthenticated_and_patient(self):
+        """Unauthenticated users and Patients CANNOT access private organization documents (401/403)"""
+        doc = OrganizationDocument.objects.create(
+            organization=self.org_a,
+            document_type='NABH_ACCREDITATION',
+            title='NABH Level 3 Hospital License',
+            document_file_url='https://storage.supabase.co/docs/nabh_cert_cmc.pdf',
+            verification_status='VERIFIED'
+        )
+
+        # 1. Anonymous fails
+        self.client.logout()
+        resp_anon = self.client.get(f'/api/network/documents/{doc.id}/')
+        self.assertEqual(resp_anon.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # 2. Patient fails (403)
+        self.client.force_authenticate(user=self.patient)
+        resp_patient = self.client.get(f'/api/network/documents/{doc.id}/')
+        self.assertEqual(resp_patient.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_document_object_level_cross_tenant_isolation(self):
+        """Org B Admin CANNOT access Org A's document; Org A Admin & Super Admin CAN"""
+        doc = OrganizationDocument.objects.create(
+            organization=self.org_a,
+            document_type='HOSPITAL_LICENSE',
+            title='Kerala Clinical Establishments Act Registration',
+            document_file_url='https://storage.supabase.co/docs/cea_cmc.pdf',
+            verification_status='VERIFIED'
+        )
+
+        # 1. Org B Admin fails (403 Forbidden)
+        self.client.force_authenticate(user=self.admin_b)
+        resp_b = self.client.get(f'/api/network/documents/{doc.id}/')
+        self.assertEqual(resp_b.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 2. Org A Admin succeeds (200 OK)
+        self.client.force_authenticate(user=self.admin_a)
+        resp_a = self.client.get(f'/api/network/documents/{doc.id}/')
+        self.assertEqual(resp_a.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_a.data['title'], 'Kerala Clinical Establishments Act Registration')
+
+        # 3. Super Admin succeeds (200 OK)
+        self.client.force_authenticate(user=self.superadmin)
+        resp_sa = self.client.get(f'/api/network/documents/{doc.id}/')
+        self.assertEqual(resp_sa.status_code, status.HTTP_200_OK)
+
+    def test_appointment_idempotency_prevents_duplicate_tokens(self):
+        """Duplicate appointment submissions with the same idempotency_key do not create duplicate records"""
+        payload = {
+            'organization': self.org_a.id,
+            'doctor': self.doctor_a.id,
+            'patient_name': 'Kavitha Nair',
+            'patient_phone': '+919447012345',
+            'patient_age': 52,
+            'district': 'Kozhikode',
+            'preferred_date': '2026-09-10',
+            'idempotency_key': 'IDEM-UUID-APPT-998877'
+        }
+
+        # 1. First submission -> 201 Created
+        resp1 = self.client.post('/api/network/appointments/request/', payload)
+        self.assertEqual(resp1.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(resp1.data['is_duplicate_suppressed'])
+        appt_id = resp1.data['appointment_id']
+
+        # 2. Second immediate submission (network glitch / double-tap) -> 200 OK with duplicate suppressed
+        resp2 = self.client.post('/api/network/appointments/request/', payload)
+        self.assertEqual(resp2.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp2.data['is_duplicate_suppressed'])
+        self.assertEqual(resp2.data['appointment_id'], apptt_id if 'apptt_id' in locals() else appt_id)
+
+        # 3. Verify total appointment records for this key is exactly 1 in DB
+        self.assertEqual(
+            AppointmentRequest.objects.filter(idempotency_key='IDEM-UUID-APPT-998877').count(),
+            1
+        )
+
+    def test_appointment_input_validation_invalid_phone_and_age(self):
+        """Invalid phone (<7 digits) or invalid age (>125) are rejected with 400 Bad Request"""
+        invalid_payload = {
+            'organization': self.org_a.id,
+            'doctor': self.doctor_a.id,
+            'patient_name': 'Test Invalid',
+            'patient_phone': '123', # too short
+            'patient_age': 250, # invalid age
+            'preferred_date': '2026-09-10'
+        }
+        resp = self.client.post('/api/network/appointments/request/', invalid_payload)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('patient_phone', resp.data)
+        self.assertIn('patient_age', resp.data)
+
+    def test_directory_pagination_structure(self):
+        """Directory endpoints cleanly return standardized DRF paginated responses"""
+        response = self.client.get('/api/network/directory/?page=1&page_size=20')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('count', response.data)
+        self.assertIn('results', response.data)
+        self.assertIsInstance(response.data['results'], list)

@@ -10,6 +10,7 @@ from .views import (
     ChangeRequestReviewView,
     AppointmentRequestCreateView,
     AppointmentStatusUpdateView,
+    OrganizationDocumentDetailView,
     PatientInformationReportView,
     PlatformAdminDashboardView,
 )
@@ -32,6 +33,7 @@ urlpatterns = [
     # Consultation & Appointments
     path('appointments/request/', AppointmentRequestCreateView.as_view(), name='appointment_request'),
     path('appointments/<int:pk>/status/', AppointmentStatusUpdateView.as_view(), name='appointment_status_update'),
+    path('documents/<int:pk>/', OrganizationDocumentDetailView.as_view(), name='organization_document_detail'),
     path('report-inaccuracy/', PatientInformationReportView.as_view(), name='report_inaccuracy'),
     
     # Platform Administration

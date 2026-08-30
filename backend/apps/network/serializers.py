@@ -179,6 +179,21 @@ class HealthcareProfileAdminSerializer(serializers.ModelSerializer):
         model = HealthcareProfile
         fields = '__all__'
 
+    def validate_total_beds(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Total beds cannot be negative.")
+        return value
+
+    def validate_icu_beds(self, value):
+        if value < 0:
+            raise serializers.ValidationError("ICU beds cannot be negative.")
+        return value
+
+    def validate_pincode(self, value):
+        if value and (not value.isdigit() or len(value) != 6):
+            raise serializers.ValidationError("Pincode must be a valid 6-digit numeric code.")
+        return value
+
 class ChangeRequestSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.CharField(source='requested_by.username', read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.username', read_only=True)
@@ -224,3 +239,14 @@ class AppointmentRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppointmentRequest
         fields = '__all__'
+
+    def validate_patient_phone(self, value):
+        cleaned = ''.join(filter(str.isdigit, value or ''))
+        if len(cleaned) < 7:
+            raise serializers.ValidationError("Please provide a valid contact phone number with at least 7 digits.")
+        return value
+
+    def validate_patient_age(self, value):
+        if value is not None and (value < 0 or value > 125):
+            raise serializers.ValidationError("Patient age must be between 0 and 125.")
+        return value

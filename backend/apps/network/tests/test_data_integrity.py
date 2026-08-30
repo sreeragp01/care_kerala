@@ -109,3 +109,19 @@ class NetworkDataIntegrityTests(TestCase):
         # Tier 4: Unverified status -> UNVERIFIED
         self.profile.verification_status = 'UNVERIFIED'
         self.assertEqual(self.profile.data_freshness_tier, 'UNVERIFIED')
+
+    def test_negative_beds_validation_error(self):
+        """HealthcareProfile full_clean() rejects negative total beds or ICU beds"""
+        from django.core.exceptions import ValidationError
+        self.profile.total_beds = -50
+        with self.assertRaises(ValidationError):
+            self.profile.full_clean()
+
+    def test_duplicate_doctor_detection_by_registration_number(self):
+        """Doctor registration number matching signals potential duplicates"""
+        existing_doc = Doctor.objects.filter(registration_number='TCMC/44123/KL').first()
+        self.assertIsNotNone(existing_doc)
+        # Attempting to query with same registration number finds the existing doctor
+        matches = Doctor.objects.filter(registration_number='TCMC/44123/KL')
+        self.assertEqual(matches.count(), 1)
+        self.assertEqual(matches.first().name, 'Dr. Narayanan Kutty')
