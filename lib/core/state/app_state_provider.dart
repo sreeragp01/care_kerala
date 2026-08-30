@@ -351,7 +351,7 @@ class AppStateProvider extends ChangeNotifier {
             name: cleanInput.contains('@') ? cleanInput.split('@').first : cleanInput,
             email: cleanInput,
             phone: '+91 94470 00001',
-            role: cleanInput.toLowerCase() == 'mrtuf2204@gmail.com' ? UserRole.superAdmin : UserRole.nurse,
+            role: cleanInput.toLowerCase() == 'psreerag304@gmail.com' ? UserRole.superAdmin : UserRole.nurse,
             organizationId: _activeOrganization?.id ?? 'org_kozhikode',
             district: _activeOrganization?.district ?? 'Kozhikode',
           );
@@ -368,11 +368,11 @@ class AppStateProvider extends ChangeNotifier {
     final lowerInput = cleanInput.toLowerCase();
 
     // Primary Super Admin check
-    if (lowerInput == 'mrtuf2204@gmail.com' && cleanPassword == 'Admin@12345') {
+    if (lowerInput == 'psreerag304@gmail.com' && cleanPassword == 'Sree321#') {
       final superAdminUser = UserModel(
         id: 'USR-SADM-01',
-        name: 'Super Admin',
-        email: 'mrtuf2204@gmail.com',
+        name: 'Sreerag (Super Admin)',
+        email: 'psreerag304@gmail.com',
         phone: '+91 94470 00001',
         role: UserRole.superAdmin,
         organizationId: _activeOrganization?.id ?? 'org_kozhikode',
@@ -387,7 +387,7 @@ class AppStateProvider extends ChangeNotifier {
       (u) => u.email.toLowerCase() == lowerInput || u.id.toLowerCase() == lowerInput,
     ).firstOrNull;
 
-    if (matchingUser != null && (cleanPassword == 'pass1234' || cleanPassword == 'Admin@12345' || cleanPassword == 'password123')) {
+    if (matchingUser != null && (cleanPassword == 'pass1234' || cleanPassword == 'Sree321#' || cleanPassword == 'Admin@12345' || cleanPassword == 'password123')) {
       await loginAsUser(matchingUser);
       return true;
     }

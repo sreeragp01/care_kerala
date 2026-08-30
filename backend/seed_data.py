@@ -53,11 +53,13 @@ def seed():
 
 
     # 2. Users - Super Admin Account
+    admin_email = os.getenv('SUPERADMIN_EMAIL', 'psreerag304@gmail.com')
+    admin_pass = os.getenv('SUPERADMIN_PASSWORD', 'Sree321#')
     super_admin, created = User.objects.get_or_create(
-        username='mrtuf2204@gmail.com',
+        username=admin_email,
         defaults={
-            'email': 'mrtuf2204@gmail.com',
-            'first_name': 'Super',
+            'email': admin_email,
+            'first_name': 'Sreerag',
             'last_name': 'Admin',
             'role': UserRole.SUPER_ADMIN,
             'is_staff': True,
@@ -67,7 +69,8 @@ def seed():
             'phone': '+91 94470 00001',
         }
     )
-    super_admin.set_password('Admin@12345')
+    super_admin.email = admin_email
+    super_admin.set_password(admin_pass)
     super_admin.is_staff = True
     super_admin.is_superuser = True
     super_admin.role = UserRole.SUPER_ADMIN

@@ -477,7 +477,7 @@ class MockDatabaseService {
       UserModel(
         id: 'USR-SADM-01',
         name: 'Super Admin',
-        email: 'mrtuf2204@gmail.com',
+        email: 'psreerag304@gmail.com',
         phone: '+91 94470 00001',
         role: UserRole.superAdmin,
         organizationId: 'org_kozhikode',
