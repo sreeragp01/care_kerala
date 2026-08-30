@@ -18,6 +18,7 @@ class PlatformNetworkAdminScreen extends StatelessWidget {
         final allHospitals = state.healthcareProfiles;
         final verifiedCount = allHospitals.where((h) => h.isCareLinkVerified).length;
         final pendingCount = allHospitals.where((h) => !h.isCareLinkVerified).length;
+        final pendingClaims = state.claimRequests.where((c) => c.status == 'PENDING').toList();
 
         return Scaffold(
           backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
@@ -47,10 +48,19 @@ class PlatformNetworkAdminScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     _buildMetricCard('Verified 🟢', '$verifiedCount', Icons.verified_rounded, AppColors.brandHealthGreen, isDark),
                     const SizedBox(width: 8),
-                    _buildMetricCard('Pending Review', '$pendingCount', Icons.pending_rounded, Colors.orangeAccent, isDark),
+                    _buildMetricCard('Claims Queue', '${pendingClaims.length}', Icons.how_to_reg_rounded, Colors.purpleAccent, isDark),
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // Organization Claims Review Queue
+                if (pendingClaims.isNotEmpty) ...[
+                  _buildSectionTitle('Organization Ownership Claims (${pendingClaims.length} Pending)', isDark),
+                  const SizedBox(height: 8),
+                  ...pendingClaims.map((claim) => _buildClaimCard(context, claim, state, isDark)),
+                  const SizedBox(height: 16),
+                ],
+
                 _buildSectionTitle('Kerala District Health Coverage', isDark),
                 const SizedBox(height: 8),
                 GlassCard(
@@ -95,6 +105,84 @@ class PlatformNetworkAdminScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildClaimCard(BuildContext context, ClaimOrganizationRequestModel claim, AppStateProvider state, bool isDark) {
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Claim for "${claim.organizationName}"',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text('Claim Pending', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.purpleAccent)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Claimant: @${claim.claimantUsername} • Designation: ${claim.claimantDesignation}',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.brandTeal : AppColors.brandNavy),
+          ),
+          Text(
+            'Email: ${claim.officialEmail} • Phone: ${claim.officialPhone}',
+            style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.description_outlined, size: 14, color: AppColors.brandTeal),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Proof: ${claim.proofDocumentUrl}',
+                  style: const TextStyle(fontSize: 11, color: Colors.blueAccent, decoration: TextDecoration.underline),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => state.rejectClaimRequest(claim.id),
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.redAccent),
+                  child: const Text('Reject Claim', style: TextStyle(fontSize: 11)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => state.approveClaimRequest(claim.id),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandHealthGreen),
+                  child: const Text('Approve & Assign Admin', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

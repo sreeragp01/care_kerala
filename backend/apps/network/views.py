@@ -22,14 +22,20 @@ from .serializers import (
     DepartmentSerializer,
     HealthcareServiceSerializer,
     FacilitySerializer,
-    HealthcareProfileSerializer,
-    DoctorSerializer,
+    HealthcareProfilePublicSerializer,
+    HealthcareProfileAdminSerializer,
+    DoctorPublicSerializer,
     DoctorScheduleSerializer,
     ChangeRequestSerializer,
     OrganizationDocumentSerializer,
     ClaimOrganizationRequestSerializer,
     PatientInformationReportSerializer,
     AppointmentRequestSerializer,
+)
+from .permissions import (
+    IsPlatformAdminOrSuperAdmin,
+    IsOrganizationAdminOrOwner,
+    IsOrganizationModeratorOrAdmin,
 )
 from apps.organizations.models import Organization
 
@@ -38,11 +44,20 @@ class PublicDirectoryListView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        queryset = HealthcareProfile.objects.select_related('organization', 'verified_by').prefetch_related('specialties', 'services', 'facilities', 'organization__departments')
+        queryset = HealthcareProfile.objects.select_related(
+            'organization'
+        ).prefetch_related(
+            'specialties',
+            'services',
+            'facilities',
+            'organization__departments',
+            'organization__doctor_affiliations__doctor__primary_specialty',
+            'organization__doctor_affiliations__schedules'
+        )
 
         # Filter by District
         district = request.query_params.get('district')
-        if district:
+        if district and district != 'All Districts':
             queryset = queryset.filter(Q(district__iexact=district) | Q(organization__district__iexact=district))
 
         # Filter by Organization Type
@@ -70,7 +85,7 @@ class PublicDirectoryListView(views.APIView):
         if verified_only and verified_only.lower() in ('true', '1', 'yes'):
             queryset = queryset.filter(verification_status='VERIFIED')
 
-        # Search Query (name, address, services, doctors)
+        # Search Query (name, address, services, specialties)
         q = request.query_params.get('search')
         if q:
             queryset = queryset.filter(
@@ -81,20 +96,27 @@ class PublicDirectoryListView(views.APIView):
                 Q(services__name__icontains=q)
             ).distinct()
 
-        serializer = HealthcareProfileSerializer(queryset, many=True)
+        serializer = HealthcareProfilePublicSerializer(queryset, many=True)
         return Response({
             'count': queryset.count(),
             'results': serializer.data
         })
 
 class HospitalDetailView(views.APIView):
-    """Retrieve full detailed hospital profile with departments, doctors, and facilities"""
+    """Retrieve public detailed hospital profile with departments, doctors, and facilities"""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, pk):
         try:
-            profile = HealthcareProfile.objects.select_related('organization').prefetch_related('specialties', 'services', 'facilities', 'organization__departments').get(Q(id=pk) | Q(organization__id=pk))
-            serializer = HealthcareProfileSerializer(profile)
+            profile = HealthcareProfile.objects.select_related('organization').prefetch_related(
+                'specialties',
+                'services',
+                'facilities',
+                'organization__departments',
+                'organization__doctor_affiliations__doctor__primary_specialty',
+                'organization__doctor_affiliations__schedules'
+            ).get(Q(id=pk) | Q(organization__id=pk))
+            serializer = HealthcareProfilePublicSerializer(profile)
             return Response(serializer.data)
         except HealthcareProfile.DoesNotExist:
             return Response({'detail': 'Hospital not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -104,14 +126,20 @@ class DoctorDirectoryListView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        queryset = Doctor.objects.filter(is_active=True).select_related('primary_specialty').prefetch_related('affiliations', 'affiliations__organization', 'affiliations__schedules')
+        queryset = Doctor.objects.filter(is_active=True).select_related(
+            'primary_specialty'
+        ).prefetch_related(
+            'affiliations__organization',
+            'affiliations__department',
+            'affiliations__schedules'
+        )
 
         specialty = request.query_params.get('specialty')
         if specialty:
             queryset = queryset.filter(Q(primary_specialty__name__icontains=specialty) | Q(sub_specialties__icontains=specialty))
 
         district = request.query_params.get('district')
-        if district:
+        if district and district != 'All Districts':
             queryset = queryset.filter(affiliations__organization__district__iexact=district)
 
         mode = request.query_params.get('mode')
@@ -127,7 +155,7 @@ class DoctorDirectoryListView(views.APIView):
                 Q(affiliations__organization__name__icontains=search)
             ).distinct()
 
-        serializer = DoctorSerializer(queryset.distinct(), many=True)
+        serializer = DoctorPublicSerializer(queryset.distinct(), many=True)
         return Response({
             'count': queryset.count(),
             'results': serializer.data
@@ -151,7 +179,7 @@ class JoinCareLinkView(views.APIView):
         duplicate_check = Organization.objects.filter(
             Q(name__iexact=name, district__iexact=district) |
             Q(phone=phone) |
-            Q(registration_number=reg_number)
+            (Q(registration_number=reg_number) if reg_number else Q())
         ).first()
 
         if duplicate_check and not data.get('force_create', False):
@@ -199,8 +227,17 @@ class JoinCareLinkView(views.APIView):
         }, status=status.HTTP_201_CREATED)
 
 class ClaimOrganizationView(views.APIView):
-    """Submit a claim for an existing organization profile"""
-    permission_classes = [permissions.IsAuthenticated]
+    """Submit a claim for an existing organization profile or list pending claims for platform admin"""
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsPlatformAdminOrSuperAdmin()]
+        return [permissions.IsAuthenticated()]
+
+    def get(self, request):
+        claims = ClaimOrganizationRequest.objects.select_related('organization', 'claimant').all()
+        serializer = ClaimOrganizationRequestSerializer(claims, many=True)
+        return Response(serializer.data)
 
     def post(self, request):
         data = request.data
@@ -215,7 +252,7 @@ class ClaimOrganizationView(views.APIView):
             claimant=request.user,
             claimant_designation=data.get('claimant_designation', 'Authorized Officer'),
             official_email=data.get('official_email', request.user.email),
-            official_phone=data.get('official_phone', request.user.phone or ''),
+            official_phone=data.get('official_phone', getattr(request.user, 'phone', '')),
             proof_document_url=data.get('proof_document_url', ''),
             status='PENDING'
         )
@@ -226,15 +263,59 @@ class ClaimOrganizationView(views.APIView):
             'claim_id': claim.id
         }, status=status.HTTP_201_CREATED)
 
+class ClaimOrganizationReviewView(views.APIView):
+    """Super Admin / Platform Admin endpoint to Approve or Reject a Claim"""
+    permission_classes = [IsPlatformAdminOrSuperAdmin]
+
+    def post(self, request, pk):
+        try:
+            claim = ClaimOrganizationRequest.objects.select_related('organization', 'claimant').get(id=pk)
+        except ClaimOrganizationRequest.DoesNotExist:
+            return Response({'error': 'Claim request not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get('action') # 'APPROVE' or 'REJECT'
+        notes = request.data.get('notes', '')
+
+        if action == 'APPROVE':
+            claim.status = 'APPROVED'
+            claim.reviewed_by = request.user
+            claim.reviewed_at = timezone.now()
+            claim.reviewer_notes = notes
+            claim.save()
+
+            # Automatic Role Promotion & Tenant Linkage
+            claimant = claim.claimant
+            claimant.organization = claim.organization
+            if hasattr(claimant, 'role'):
+                claimant.role = 'orgAdmin'
+            claimant.save()
+
+            return Response({
+                'success': True,
+                'message': f"Claim approved! {claimant.username} is now registered as Organization Admin for '{claim.organization.name}'."
+            })
+        elif action == 'REJECT':
+            claim.status = 'REJECTED'
+            claim.reviewed_by = request.user
+            claim.reviewed_at = timezone.now()
+            claim.reviewer_notes = notes
+            claim.save()
+            return Response({'success': True, 'message': 'Claim rejected.'})
+        else:
+            return Response({'error': 'Invalid action. Must be APPROVE or REJECT.'}, status=status.HTTP_400_BAD_REQUEST)
+
 class ChangeRequestListView(views.APIView):
     """List and submit change proposals (Moderator -> Org Admin governance)"""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsOrganizationModeratorOrAdmin]
 
     def get(self, request):
         user = request.user
-        queryset = ChangeRequest.objects.all()
-        if user.organization:
-            queryset = queryset.filter(organization=user.organization)
+        queryset = ChangeRequest.objects.select_related('organization', 'requested_by', 'reviewed_by').all()
+        if not user.is_superuser and getattr(user, 'role', '') not in ('superAdmin', 'platformAdmin'):
+            if user.organization:
+                queryset = queryset.filter(organization=user.organization)
+            else:
+                queryset = queryset.none()
         serializer = ChangeRequestSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -244,6 +325,11 @@ class ChangeRequestListView(views.APIView):
         org_id = data.get('organization_id') or (user.organization.id if user.organization else None)
         if not org_id:
             return Response({'error': 'Organization ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Cross-Tenant Barrier Check
+        if not user.is_superuser and getattr(user, 'role', '') not in ('superAdmin', 'platformAdmin'):
+            if not user.organization or str(user.organization.id) != str(org_id):
+                return Response({'error': 'Forbidden: You cannot submit change requests for another organization.'}, status=status.HTTP_403_FORBIDDEN)
 
         org = Organization.objects.get(id=org_id)
         cr = ChangeRequest.objects.create(
@@ -260,14 +346,23 @@ class ChangeRequestListView(views.APIView):
         return Response(ChangeRequestSerializer(cr).data, status=status.HTTP_201_CREATED)
 
 class ChangeRequestReviewView(views.APIView):
-    """Approve or Reject a moderator change request"""
-    permission_classes = [permissions.IsAuthenticated]
+    """Approve or Reject a moderator change request (Strict Org Admin RBAC + Anti-Self-Approval)"""
+    permission_classes = [IsOrganizationAdminOrOwner]
 
     def post(self, request, pk):
         try:
-            cr = ChangeRequest.objects.get(id=pk)
+            cr = ChangeRequest.objects.select_related('organization', 'requested_by').get(id=pk)
         except ChangeRequest.DoesNotExist:
             return Response({'error': 'Change Request not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Cross-Tenant Barrier Check
+        if not request.user.is_superuser and getattr(request.user, 'role', '') not in ('superAdmin', 'platformAdmin'):
+            if not request.user.organization or request.user.organization.id != cr.organization.id:
+                return Response({'error': 'Forbidden: Cannot review change requests belonging to another hospital.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 2. Anti-Self-Approval Check (Moderators cannot approve their own requests)
+        if cr.requested_by == request.user and not request.user.is_superuser:
+            return Response({'error': 'Forbidden: Governance violation. You cannot approve your own change request.'}, status=status.HTTP_403_FORBIDDEN)
 
         action = request.data.get('action') # 'APPROVE' or 'REJECT'
         notes = request.data.get('notes', '')
@@ -304,6 +399,35 @@ class AppointmentRequestCreateView(views.APIView):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class AppointmentStatusUpdateView(views.APIView):
+    """Hospital Admin endpoint to Accept, Reject, Reschedule, or Complete an Appointment"""
+    permission_classes = [IsOrganizationAdminOrOwner]
+
+    def post(self, request, pk):
+        try:
+            appointment = AppointmentRequest.objects.select_related('organization', 'doctor').get(id=pk)
+        except AppointmentRequest.DoesNotExist:
+            return Response({'error': 'Appointment request not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Cross-Tenant Barrier Check
+        if not request.user.is_superuser and getattr(request.user, 'role', '') not in ('superAdmin', 'platformAdmin'):
+            if not request.user.organization or request.user.organization.id != appointment.organization.id:
+                return Response({'error': 'Forbidden: Cannot manage appointments for another hospital.'}, status=status.HTTP_403_FORBIDDEN)
+
+        new_status = request.data.get('status')
+        if new_status not in ['ACCEPTED', 'REJECTED', 'RESCHEDULED', 'CANCELLED', 'COMPLETED']:
+            return Response({'error': 'Invalid status.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        appointment.status = new_status
+        appointment.save()
+
+        return Response({
+            'success': True,
+            'message': f"Appointment status updated to '{new_status}'.",
+            'appointment_id': appointment.id,
+            'status': appointment.status
+        })
+
 class PatientInformationReportView(views.APIView):
     """Submit community feedback on outdated/incorrect information"""
     permission_classes = [permissions.AllowAny]
@@ -319,8 +443,8 @@ class PatientInformationReportView(views.APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PlatformAdminDashboardView(views.APIView):
-    """CareLink Super Admin / Platform Overview"""
-    permission_classes = [permissions.IsAuthenticated]
+    """CareLink Super Admin / Platform Overview (Strictly restricted to Platform/Super Admins)"""
+    permission_classes = [IsPlatformAdminOrSuperAdmin]
 
     def get(self, request):
         total_orgs = Organization.objects.count()

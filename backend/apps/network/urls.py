@@ -5,9 +5,11 @@ from .views import (
     DoctorDirectoryListView,
     JoinCareLinkView,
     ClaimOrganizationView,
+    ClaimOrganizationReviewView,
     ChangeRequestListView,
     ChangeRequestReviewView,
     AppointmentRequestCreateView,
+    AppointmentStatusUpdateView,
     PatientInformationReportView,
     PlatformAdminDashboardView,
 )
@@ -21,6 +23,7 @@ urlpatterns = [
     # Organization Onboarding & Claims
     path('organizations/register/', JoinCareLinkView.as_view(), name='join_carelink'),
     path('organizations/claim/', ClaimOrganizationView.as_view(), name='claim_organization'),
+    path('organizations/claims/<int:pk>/review/', ClaimOrganizationReviewView.as_view(), name='claim_organization_review'),
     
     # Governance & Change Requests
     path('change-requests/', ChangeRequestListView.as_view(), name='change_requests_list'),
@@ -28,6 +31,7 @@ urlpatterns = [
     
     # Consultation & Appointments
     path('appointments/request/', AppointmentRequestCreateView.as_view(), name='appointment_request'),
+    path('appointments/<int:pk>/status/', AppointmentStatusUpdateView.as_view(), name='appointment_status_update'),
     path('report-inaccuracy/', PatientInformationReportView.as_view(), name='report_inaccuracy'),
     
     # Platform Administration

@@ -148,6 +148,23 @@ class HealthcareProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def is_carelink_verified(self):
+        return self.verification_status == VerificationStatus.VERIFIED
+
+    @property
+    def data_freshness_tier(self):
+        """Calculates 4-tier freshness based on last_verified_at"""
+        if not self.last_verified_at or self.verification_status != VerificationStatus.VERIFIED:
+            return 'UNVERIFIED'
+        delta = (timezone.now() - self.last_verified_at).days
+        if delta <= 30:
+            return 'CURRENT' # 🟢 Current (0-30 days)
+        elif delta <= 90:
+            return 'REVIEW_RECOMMENDED' # 🟡 Review recommended (31-90 days)
+        else:
+            return 'VERIFICATION_REQUIRED' # 🟠 Verification required (90+ days)
+
     def __str__(self):
         return f"{self.organization.name} Profile ({self.get_organization_type_display()} • {self.district})"
 
@@ -235,6 +252,13 @@ class DoctorSchedule(models.Model):
 
     class Meta:
         ordering = ['day_of_week', 'start_time']
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        super().clean()
+        if self.start_time and self.end_time:
+            if self.start_time.strip() == self.end_time.strip():
+                raise ValidationError({'end_time': 'End time cannot be identical to start time.'})
 
     def __str__(self):
         return f"{self.affiliation.doctor.name} @ {self.affiliation.organization.name} | {self.get_day_of_week_display()} ({self.start_time} - {self.end_time})"

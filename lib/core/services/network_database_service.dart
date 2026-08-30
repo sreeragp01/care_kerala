@@ -406,4 +406,20 @@ class NetworkDatabaseService {
       ),
     ];
   }
+
+  static List<ClaimOrganizationRequestModel> getInitialClaimRequests() {
+    return const [
+      ClaimOrganizationRequestModel(
+        id: 'CLM-01',
+        organizationId: 'org_wayanad',
+        organizationName: 'Wayanad Tribal Health Mission & Hospital',
+        claimantUsername: 'dr_mathew_director',
+        claimantDesignation: 'Medical Superintendent & Trustee',
+        officialEmail: 'superintendent@wayanadhealthmission.org',
+        officialPhone: '+91 94470 55123',
+        proofDocumentUrl: 'https://carelink.kerala.gov.in/docs/trust_deed_wayanad.pdf',
+        status: 'PENDING',
+      ),
+    ];
+  }
 }

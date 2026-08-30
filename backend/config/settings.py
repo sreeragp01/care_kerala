@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 
@@ -80,8 +81,9 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database Configuration (Supabase PostgreSQL / Direct PostgreSQL / SQLite Fallback)
-DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
-DB_ENGINE = os.getenv('DB_ENGINE', '').lower()
+IS_TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
+DATABASE_URL = None if IS_TESTING else (os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL'))
+DB_ENGINE = '' if IS_TESTING else os.getenv('DB_ENGINE', '').lower()
 
 if DATABASE_URL:
     try:

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import (
     Specialty,
     Department,
@@ -19,22 +20,24 @@ from apps.organizations.models import Organization
 class SpecialtySerializer(serializers.ModelSerializer):
     class Meta:
         model = Specialty
-        fields = '__all__'
+        fields = ['id', 'name', 'category', 'description', 'icon_name', 'is_active']
 
 class DepartmentSerializer(serializers.ModelSerializer):
+    head_of_department_name = serializers.CharField(source='head_of_department.name', read_only=True)
+
     class Meta:
         model = Department
-        fields = '__all__'
+        fields = ['id', 'name', 'code', 'floor_location', 'phone_extension', 'head_of_department_name', 'is_active']
 
 class HealthcareServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = HealthcareService
-        fields = '__all__'
+        fields = ['id', 'name', 'category', 'description', 'is_emergency_service']
 
 class FacilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Facility
-        fields = '__all__'
+        fields = ['id', 'name', 'category', 'icon_name']
 
 class DoctorScheduleSerializer(serializers.ModelSerializer):
     day_name = serializers.CharField(source='get_day_of_week_display', read_only=True)
@@ -42,37 +45,66 @@ class DoctorScheduleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DoctorSchedule
-        fields = '__all__'
+        fields = [
+            'id', 'day_of_week', 'day_name', 'start_time', 'end_time',
+            'consultation_type', 'location_room', 'max_tokens',
+            'appointment_required', 'status', 'status_display', 'last_verified_at'
+        ]
 
-class DoctorAffiliationSerializer(serializers.ModelSerializer):
+    def validate(self, data):
+        start = data.get('start_time')
+        end = data.get('end_time')
+        if start and end and start.strip() == end.strip():
+            raise serializers.ValidationError({'end_time': 'End time cannot be identical to start time.'})
+        return data
+
+class DoctorAffiliationPublicSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     organization_district = serializers.CharField(source='organization.district', read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
-    schedules = DoctorScheduleSerializer(many=True, read_only=True)
+    schedules = serializers.SerializerMethodField()
     consultation_mode_display = serializers.CharField(source='get_consultation_mode_display', read_only=True)
 
     class Meta:
         model = DoctorAffiliation
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'organization_name', 'organization_district',
+            'department_name', 'designation', 'consultation_mode', 'consultation_mode_display',
+            'consultation_fee', 'schedules'
+        ]
 
-class DoctorSerializer(serializers.ModelSerializer):
+    def get_schedules(self, obj):
+        # Expose only active schedules in public search
+        active_schedules = obj.schedules.filter(status='ACTIVE')
+        return DoctorScheduleSerializer(active_schedules, many=True).data
+
+class DoctorPublicSerializer(serializers.ModelSerializer):
+    """Public safe doctor profile for search directory"""
     primary_specialty_name = serializers.CharField(source='primary_specialty.name', read_only=True)
     primary_specialty_icon = serializers.CharField(source='primary_specialty.icon_name', read_only=True)
-    affiliations = DoctorAffiliationSerializer(many=True, read_only=True)
+    affiliations = DoctorAffiliationPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = Doctor
-        fields = '__all__'
+        fields = [
+            'id', 'name', 'profile_photo_url', 'qualification',
+            'primary_specialty', 'primary_specialty_name', 'primary_specialty_icon',
+            'sub_specialties', 'experience_years', 'languages',
+            'registration_authority', 'registration_number', 'is_reg_verified',
+            'biography', 'affiliations'
+        ]
 
-class HealthcareProfileSerializer(serializers.ModelSerializer):
+class HealthcareProfilePublicSerializer(serializers.ModelSerializer):
+    """Public Search API Serializer (Zero leakage of internal documents or reviewer IDs)"""
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     organization_district = serializers.CharField(source='organization.district', read_only=True)
     organization_phone = serializers.CharField(source='organization.phone', read_only=True)
-    organization_reg_number = serializers.CharField(source='organization.registration_number', read_only=True)
     organization_type_display = serializers.CharField(source='get_organization_type_display', read_only=True)
     ownership_type_display = serializers.CharField(source='get_ownership_type_display', read_only=True)
     verification_status_display = serializers.CharField(source='get_verification_status_display', read_only=True)
-    
+    data_freshness_tier = serializers.CharField(read_only=True)
+    data_freshness_label = serializers.SerializerMethodField()
+
     specialties = SpecialtySerializer(many=True, read_only=True)
     services = HealthcareServiceSerializer(many=True, read_only=True)
     facilities = FacilitySerializer(many=True, read_only=True)
@@ -81,10 +113,32 @@ class HealthcareProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HealthcareProfile
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'organization_name', 'organization_district',
+            'organization_phone', 'organization_type', 'organization_type_display',
+            'ownership_type', 'ownership_type_display', 'verification_status',
+            'verification_status_display', 'is_carelink_verified', 'data_freshness_tier',
+            'data_freshness_label', 'address', 'district', 'pincode', 'latitude', 'longitude',
+            'emergency_phone', 'is_24x7_emergency', 'total_beds', 'icu_beds', 'ambulance_available',
+            'description', 'established_year', 'profile_completeness_score', 'last_verified_at',
+            'specialties', 'services', 'facilities', 'departments', 'doctors'
+        ]
+
+    def get_data_freshness_label(self, obj):
+        tier = obj.data_freshness_tier
+        if tier == 'CURRENT':
+            return 'Verified & Active 🟢'
+        elif tier == 'REVIEW_RECOMMENDED':
+            return 'Periodic Review Recommended 🟡'
+        elif tier == 'VERIFICATION_REQUIRED':
+            return 'Re-Verification Required 🟠'
+        return 'Unverified / Draft Profile 🔴'
 
     def get_doctors(self, obj):
-        affiliations = DoctorAffiliation.objects.filter(organization=obj.organization, is_active=True).select_related('doctor', 'doctor__primary_specialty')
+        affiliations = DoctorAffiliation.objects.filter(
+            organization=obj.organization, is_active=True, doctor__is_active=True
+        ).select_related('doctor', 'doctor__primary_specialty').prefetch_related('schedules')
+        
         result = []
         for aff in affiliations:
             d = aff.doctor
@@ -108,10 +162,22 @@ class HealthcareProfileSerializer(serializers.ModelSerializer):
                         'room': s.location_room,
                         'status': s.status,
                     }
-                    for s in aff.schedules.all()
+                    for s in aff.schedules.filter(status='ACTIVE')
                 ]
             })
         return result
+
+class HealthcareProfileAdminSerializer(serializers.ModelSerializer):
+    """Admin-level serializer with internal audit fields, documents, and reviewer details"""
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    organization_district = serializers.CharField(source='organization.district', read_only=True)
+    organization_phone = serializers.CharField(source='organization.phone', read_only=True)
+    verified_by_username = serializers.CharField(source='verified_by.username', read_only=True)
+    data_freshness_tier = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = HealthcareProfile
+        fields = '__all__'
 
 class ChangeRequestSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.CharField(source='requested_by.username', read_only=True)
@@ -134,6 +200,7 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
 class ClaimOrganizationRequestSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     claimant_username = serializers.CharField(source='claimant.username', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = ClaimOrganizationRequest

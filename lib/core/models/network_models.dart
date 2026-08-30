@@ -231,6 +231,8 @@ class HealthcareProfileModel {
   final String ownershipType;
   final String verificationStatus;
   final bool isCareLinkVerified;
+  final String dataFreshnessTier;
+  final String dataFreshnessLabel;
   final String district;
   final String address;
   final String pincode;
@@ -258,6 +260,8 @@ class HealthcareProfileModel {
     this.ownershipType = 'Trust / Non-Profit',
     this.verificationStatus = 'VERIFIED',
     this.isCareLinkVerified = true,
+    this.dataFreshnessTier = 'CURRENT',
+    this.dataFreshnessLabel = 'Verified & Active 🟢',
     this.district = 'Kozhikode',
     this.address = '',
     this.pincode = '673001',
@@ -310,6 +314,9 @@ class HealthcareProfileModel {
           .toList();
     }
 
+    final tier = json['data_freshness_tier'] ?? 'CURRENT';
+    final label = json['data_freshness_label'] ?? (tier == 'CURRENT' ? 'Verified & Active 🟢' : 'Review Recommended 🟡');
+
     return HealthcareProfileModel(
       id: json['id']?.toString() ?? '',
       organizationId: json['organization']?.toString() ?? (json['organization_id']?.toString() ?? ''),
@@ -318,6 +325,8 @@ class HealthcareProfileModel {
       ownershipType: json['ownership_type_display'] ?? (json['ownership_type'] ?? 'Trust'),
       verificationStatus: json['verification_status'] ?? 'VERIFIED',
       isCareLinkVerified: (json['verification_status'] == 'VERIFIED'),
+      dataFreshnessTier: tier,
+      dataFreshnessLabel: label,
       district: json['district'] ?? (json['organization_district'] ?? 'Kozhikode'),
       address: json['address'] ?? '',
       pincode: json['pincode'] ?? '673001',
@@ -380,6 +389,44 @@ class ChangeRequestModel {
       reason: json['reason'] ?? '',
       status: json['status'] ?? 'PENDING',
       createdAt: json['created_at'] != null ? json['created_at'].toString().split('T').first : 'Today',
+    );
+  }
+}
+
+class ClaimOrganizationRequestModel {
+  final String id;
+  final String organizationId;
+  final String organizationName;
+  final String claimantUsername;
+  final String claimantDesignation;
+  final String officialEmail;
+  final String officialPhone;
+  final String proofDocumentUrl;
+  final String status;
+
+  const ClaimOrganizationRequestModel({
+    required this.id,
+    required this.organizationId,
+    required this.organizationName,
+    required this.claimantUsername,
+    this.claimantDesignation = 'Authorized Officer',
+    this.officialEmail = '',
+    this.officialPhone = '',
+    this.proofDocumentUrl = '',
+    this.status = 'PENDING',
+  });
+
+  factory ClaimOrganizationRequestModel.fromJson(Map<String, dynamic> json) {
+    return ClaimOrganizationRequestModel(
+      id: json['id']?.toString() ?? '',
+      organizationId: json['organization']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? 'Healthcare Institution',
+      claimantUsername: json['claimant_username'] ?? 'User',
+      claimantDesignation: json['claimant_designation'] ?? 'Authorized Officer',
+      officialEmail: json['official_email'] ?? '',
+      officialPhone: json['official_phone'] ?? '',
+      proofDocumentUrl: json['proof_document_url'] ?? '',
+      status: json['status'] ?? 'PENDING',
     );
   }
 }

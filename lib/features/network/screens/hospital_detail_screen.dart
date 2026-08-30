@@ -49,18 +49,18 @@ class HospitalDetailScreen extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppColors.brandHealthGreen.withValues(alpha: 0.2),
+                                  color: (hospital.dataFreshnessTier == 'CURRENT' ? AppColors.brandHealthGreen : Colors.orangeAccent).withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppColors.brandHealthGreen),
+                                  border: Border.all(color: hospital.dataFreshnessTier == 'CURRENT' ? AppColors.brandHealthGreen : Colors.orangeAccent),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Icon(Icons.verified_rounded, size: 14, color: AppColors.brandHealthGreen),
-                                    SizedBox(width: 4),
+                                  children: [
+                                    Icon(Icons.verified_rounded, size: 14, color: hospital.dataFreshnessTier == 'CURRENT' ? AppColors.brandHealthGreen : Colors.orangeAccent),
+                                    const SizedBox(width: 4),
                                     Text(
-                                      'CareLink Verified',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                      hospital.dataFreshnessLabel,
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
                                   ],
                                 ),
@@ -107,6 +107,48 @@ class HospitalDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildActionButtons(context, isDark),
+                      const SizedBox(height: 14),
+
+                      // Clinical Safety & Real-Time Availability Disclaimer
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppColors.brandNavy : AppColors.brandPeaceBlue).withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.brandTeal.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.shield_outlined, size: 18, color: AppColors.brandTeal),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'CareLink Verified Profile',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppColors.darkTextPrimary : AppColors.brandNavy,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Institutional infrastructure, specialties, and emergency lines are verified with Kerala health authorities. For live ICU bed availability and immediate emergency admission, please call the 24x7 desk directly.',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      height: 1.35,
+                                      color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       _buildSectionTitle('Capacity & Infrastructure', isDark),
                       const SizedBox(height: 8),

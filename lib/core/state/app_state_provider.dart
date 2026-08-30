@@ -138,6 +138,7 @@ class AppStateProvider extends ChangeNotifier {
     _doctors = NetworkDatabaseService.getInitialDoctors();
     _specialties = NetworkDatabaseService.getInitialSpecialties();
     _changeRequests = NetworkDatabaseService.getInitialChangeRequests();
+    _claimRequests = NetworkDatabaseService.getInitialClaimRequests();
 
     _notifications = [
       'Welcome to CareLink Kerala! System running online.',
@@ -1162,6 +1163,7 @@ class AppStateProvider extends ChangeNotifier {
   List<DoctorModel> _doctors = [];
   List<SpecialtyModel> _specialties = [];
   List<ChangeRequestModel> _changeRequests = [];
+  List<ClaimOrganizationRequestModel> _claimRequests = [];
   final List<AppointmentRequestModel> _appointmentRequests = [];
 
   String _networkDistrictFilter = 'All Districts';
@@ -1173,6 +1175,7 @@ class AppStateProvider extends ChangeNotifier {
   List<DoctorModel> get doctors => _doctors;
   List<SpecialtyModel> get specialties => _specialties;
   List<ChangeRequestModel> get changeRequests => _changeRequests;
+  List<ClaimOrganizationRequestModel> get claimRequests => _claimRequests;
   List<AppointmentRequestModel> get appointmentRequests => _appointmentRequests;
 
   String get networkDistrictFilter => _networkDistrictFilter;
@@ -1290,6 +1293,71 @@ class AppStateProvider extends ChangeNotifier {
     _changeRequests.insert(0, cr);
     _addNotification('Submitted Change Request #${cr.id}: ${cr.changeSummary}');
     notifyListeners();
+  }
+
+  void approveClaimRequest(String claimId) {
+    final idx = _claimRequests.indexWhere((c) => c.id == claimId);
+    if (idx != -1) {
+      final old = _claimRequests[idx];
+      _claimRequests[idx] = ClaimOrganizationRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        claimantUsername: old.claimantUsername,
+        claimantDesignation: old.claimantDesignation,
+        officialEmail: old.officialEmail,
+        officialPhone: old.officialPhone,
+        proofDocumentUrl: old.proofDocumentUrl,
+        status: 'APPROVED',
+      );
+      _addNotification('Claim for "${old.organizationName}" approved. Assigned ${old.claimantUsername} as Org Admin.');
+      notifyListeners();
+    }
+  }
+
+  void rejectClaimRequest(String claimId) {
+    final idx = _claimRequests.indexWhere((c) => c.id == claimId);
+    if (idx != -1) {
+      final old = _claimRequests[idx];
+      _claimRequests[idx] = ClaimOrganizationRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        claimantUsername: old.claimantUsername,
+        claimantDesignation: old.claimantDesignation,
+        officialEmail: old.officialEmail,
+        officialPhone: old.officialPhone,
+        proofDocumentUrl: old.proofDocumentUrl,
+        status: 'REJECTED',
+      );
+      _addNotification('Claim for "${old.organizationName}" rejected.');
+      notifyListeners();
+    }
+  }
+
+  void updateNetworkAppointmentStatus(String apptId, String newStatus) {
+    final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
+    if (idx != -1) {
+      final old = _appointmentRequests[idx];
+      _appointmentRequests[idx] = AppointmentRequestModel(
+        id: old.id,
+        patientName: old.patientName,
+        patientPhone: old.patientPhone,
+        patientAge: old.patientAge,
+        patientGender: old.patientGender,
+        district: old.district,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        preferredDate: old.preferredDate,
+        preferredTimeSlot: old.preferredTimeSlot,
+        consultationMode: old.consultationMode,
+        chiefComplaint: old.chiefComplaint,
+        status: newStatus,
+        tokenNumber: old.tokenNumber,
+      );
+      _addNotification('Appointment token #${old.tokenNumber} for ${old.patientName} updated to $newStatus.');
+      notifyListeners();
+    }
   }
 
   void requestDoctorAppointment(AppointmentRequestModel appointment) {
