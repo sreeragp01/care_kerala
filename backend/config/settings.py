@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'apps.finance',
     'apps.ai_services',
     'apps.alerts',
+    'apps.network',
 ]
 
 

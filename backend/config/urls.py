@@ -19,6 +19,7 @@ urlpatterns = [
     path('api/finance/', include('apps.finance.urls')),
     path('api/ai/', include('apps.ai_services.urls')),
     path('api/alerts/', include('apps.alerts.urls')),
+    path('api/network/', include('apps.network.urls')),
     path('api/sync/push/', SyncPushView.as_view(), name='sync-push'),
     path('api/sync/pull/', SyncPullView.as_view(), name='sync-pull'),
 ]

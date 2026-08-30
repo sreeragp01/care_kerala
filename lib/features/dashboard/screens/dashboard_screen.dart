@@ -26,6 +26,7 @@ import '../../nurse/screens/nurse_operations_screen.dart';
 import '../../coordinator/screens/coordinator_workspace_screen.dart';
 import '../widgets/patient_portal_view.dart';
 import '../../../core/widgets/glass_card.dart';
+import '../../network/screens/healthcare_directory_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
 
@@ -317,6 +318,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           // Phase 6: Persistent Offline & Sync Status Bar
           SyncStatusBar(state: widget.state),
+          const SizedBox(height: 12),
+
+          // CareLink Network 2.0 Feature Banner Card
+          GlassCard(
+            blur: 16,
+            borderRadius: 18,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            customFillColor: (isDark ? AppColors.brandNavy : AppColors.brandPeaceBlue).withValues(alpha: 0.35),
+            customBorderColor: AppColors.brandTeal.withValues(alpha: 0.4),
+            hasGlow: true,
+            glowColor: AppColors.brandTeal,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => HealthcareDirectoryScreen(state: widget.state)),
+              );
+            },
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandTeal.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.local_hospital_rounded, color: AppColors.brandTeal, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'CareLink Network',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppColors.darkTextPrimary : AppColors.brandNavy,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.brandHealthGreen.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('v2.0', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.brandHealthGreen)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Find Verified Hospitals, Doctors & 24x7 Emergency Care',
+                        style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.brandTeal),
+              ],
+            ),
+          ),
           const SizedBox(height: 12),
 
           // Triage Status Glowing Pills Bar (Critical, High Risk, Monitored)
@@ -1082,6 +1148,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.local_hospital_rounded, color: AppColors.brandTeal),
+              title: const Text('Find Healthcare & Hospitals'),
+              subtitle: const Text('CareLink Network 2.0', style: TextStyle(fontSize: 10, color: AppColors.brandTeal)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => HealthcareDirectoryScreen(state: widget.state)));
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.event_note_rounded),
               title: const Text('Doctor Appointments'),
               onTap: () {
@@ -1143,6 +1218,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             leading: const Icon(Icons.dashboard_rounded),
             title: Text(loc.translate('dashboard')),
             onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.local_hospital_rounded, color: AppColors.brandTeal),
+            title: const Text('CareLink Network Directory'),
+            subtitle: const Text('Verified Hospitals, Clinics & Doctors', style: TextStyle(fontSize: 10, color: AppColors.brandTeal)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => HealthcareDirectoryScreen(state: widget.state)));
+            },
           ),
           if (user.role.canAccessClinicalRecords)
             ListTile(

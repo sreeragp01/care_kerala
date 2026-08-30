@@ -3,12 +3,15 @@ from django.db import models
 from apps.organizations.models import Organization
 
 class UserRole(models.TextChoices):
-    SUPER_ADMIN = 'SUPER_ADMIN', 'Super Admin'
-    ORG_ADMIN = 'ORG_ADMIN', 'Organization Admin'
-    DOCTOR = 'DOCTOR', 'Palliative Doctor'
-    NURSE = 'NURSE', 'Community Nurse'
-    VOLUNTEER = 'VOLUNTEER', 'Palliative Volunteer'
-    RECEPTION = 'RECEPTION', 'Receptionist'
+    SUPER_ADMIN = 'SUPER_ADMIN', 'CareLink Super Admin'
+    PLATFORM_ADMIN = 'PLATFORM_ADMIN', 'CareLink Platform Admin'
+    ORGANIZATION_OWNER = 'ORGANIZATION_OWNER', 'Hospital / Organization Owner'
+    ORG_ADMIN = 'ORG_ADMIN', 'Hospital / Organization Admin'
+    MODERATOR = 'MODERATOR', 'Healthcare Content Moderator'
+    DOCTOR = 'DOCTOR', 'Doctor / Specialist'
+    NURSE = 'NURSE', 'Community / Clinical Nurse'
+    VOLUNTEER = 'VOLUNTEER', 'Volunteer'
+    RECEPTION = 'RECEPTION', 'Reception & Desk Staff'
     PHARMACIST = 'PHARMACIST', 'Pharmacist'
     ACCOUNTANT = 'ACCOUNTANT', 'Accountant'
     AMBULANCE_DRIVER = 'AMBULANCE_DRIVER', 'Ambulance Driver'

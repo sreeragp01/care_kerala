@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/patient_model.dart';
 import '../models/clinical_models.dart';
+import '../models/network_models.dart';
 import '../services/mock_database_service.dart';
+import '../services/network_database_service.dart';
 import '../services/api_service.dart';
 import '../services/auth_session_service.dart';
 
@@ -130,10 +132,18 @@ class AppStateProvider extends ChangeNotifier {
     _fundraisers = MockDatabaseService.getInitialMedicalFundraisers();
     _donations = MockDatabaseService.getInitialDonations();
     _registeredUsers = MockDatabaseService.getDemoUsers();
+    
+    // CareLink Network 2.0 State Initialization
+    _healthcareProfiles = NetworkDatabaseService.getInitialHealthcareDirectory();
+    _doctors = NetworkDatabaseService.getInitialDoctors();
+    _specialties = NetworkDatabaseService.getInitialSpecialties();
+    _changeRequests = NetworkDatabaseService.getInitialChangeRequests();
+
     _notifications = [
       'Welcome to CareLink Kerala! System running online.',
       'Emergency Blood Request posted for Calicut Medical College Hospital (O+ Group).',
       'Low stock warning: Amlodipine 5mg has reached reorder level.',
+      'CareLink Network 2.0 active: 4 Verified Kerala Hospital Centers loaded.',
     ];
   }
 
@@ -1142,6 +1152,158 @@ class AppStateProvider extends ChangeNotifier {
     _initMockData();
     _pendingOfflineSyncCount = 0;
     _addNotification('Reset all clinic databases and models to initial default demo data.');
+    notifyListeners();
+  }
+
+  // ==========================================
+  // CARELINK NETWORK 2.0 STATE & DIRECTORY
+  // ==========================================
+  List<HealthcareProfileModel> _healthcareProfiles = [];
+  List<DoctorModel> _doctors = [];
+  List<SpecialtyModel> _specialties = [];
+  List<ChangeRequestModel> _changeRequests = [];
+  final List<AppointmentRequestModel> _appointmentRequests = [];
+
+  String _networkDistrictFilter = 'All Districts';
+  String? _networkSpecialtyFilter;
+  bool _networkEmergencyOnly = false;
+  String _networkSearchQuery = '';
+
+  List<HealthcareProfileModel> get healthcareProfiles => _healthcareProfiles;
+  List<DoctorModel> get doctors => _doctors;
+  List<SpecialtyModel> get specialties => _specialties;
+  List<ChangeRequestModel> get changeRequests => _changeRequests;
+  List<AppointmentRequestModel> get appointmentRequests => _appointmentRequests;
+
+  String get networkDistrictFilter => _networkDistrictFilter;
+  String? get networkSpecialtyFilter => _networkSpecialtyFilter;
+  bool get networkEmergencyOnly => _networkEmergencyOnly;
+  String get networkSearchQuery => _networkSearchQuery;
+
+  List<HealthcareProfileModel> get filteredHealthcareProfiles {
+    return _healthcareProfiles.where((h) {
+      if (_networkDistrictFilter != 'All Districts' &&
+          h.district.toLowerCase() != _networkDistrictFilter.toLowerCase()) {
+        return false;
+      }
+      if (_networkEmergencyOnly && !h.is24x7Emergency) {
+        return false;
+      }
+      if (_networkSpecialtyFilter != null && _networkSpecialtyFilter!.isNotEmpty) {
+        final hasSpec = h.specialties.any((s) => s.toLowerCase().contains(_networkSpecialtyFilter!.toLowerCase()));
+        if (!hasSpec) return false;
+      }
+      if (_networkSearchQuery.isNotEmpty) {
+        final q = _networkSearchQuery.toLowerCase();
+        final matchesName = h.name.toLowerCase().contains(q);
+        final matchesAddr = h.address.toLowerCase().contains(q);
+        final matchesDesc = h.description.toLowerCase().contains(q);
+        final matchesSpec = h.specialties.any((s) => s.toLowerCase().contains(q));
+        final matchesDocs = h.doctors.any((d) => d.name.toLowerCase().contains(q) || d.specialty.toLowerCase().contains(q));
+        if (!matchesName && !matchesAddr && !matchesDesc && !matchesSpec && !matchesDocs) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  void setNetworkDistrictFilter(String district) {
+    _networkDistrictFilter = district;
+    notifyListeners();
+  }
+
+  void setNetworkSpecialtyFilter(String? specialty) {
+    _networkSpecialtyFilter = specialty;
+    notifyListeners();
+  }
+
+  void setNetworkEmergencyOnly(bool val) {
+    _networkEmergencyOnly = val;
+    notifyListeners();
+  }
+
+  void setNetworkSearchQuery(String query) {
+    _networkSearchQuery = query;
+    notifyListeners();
+  }
+
+  void clearNetworkFilters() {
+    _networkDistrictFilter = 'All Districts';
+    _networkSpecialtyFilter = null;
+    _networkEmergencyOnly = false;
+    _networkSearchQuery = '';
+    notifyListeners();
+  }
+
+  void submitHospitalApplication(HealthcareProfileModel newProfile) {
+    _healthcareProfiles.insert(0, newProfile);
+    _addNotification('Application for "${newProfile.name}" submitted for CareLink Network verification.');
+    notifyListeners();
+  }
+
+  void approveChangeRequest(String crId, {String notes = ''}) {
+    final idx = _changeRequests.indexWhere((c) => c.id == crId);
+    if (idx != -1) {
+      final oldCr = _changeRequests[idx];
+      _changeRequests[idx] = ChangeRequestModel(
+        id: oldCr.id,
+        organizationId: oldCr.organizationId,
+        organizationName: oldCr.organizationName,
+        requestedByName: oldCr.requestedByName,
+        entityType: oldCr.entityType,
+        changeSummary: oldCr.changeSummary,
+        oldData: oldCr.oldData,
+        newData: oldCr.newData,
+        reason: oldCr.reason,
+        status: 'APPROVED',
+        createdAt: oldCr.createdAt,
+      );
+      _addNotification('Change Request #${oldCr.id} approved and published to public healthcare directory.');
+      notifyListeners();
+    }
+  }
+
+  void rejectChangeRequest(String crId, {String notes = ''}) {
+    final idx = _changeRequests.indexWhere((c) => c.id == crId);
+    if (idx != -1) {
+      final oldCr = _changeRequests[idx];
+      _changeRequests[idx] = ChangeRequestModel(
+        id: oldCr.id,
+        organizationId: oldCr.organizationId,
+        organizationName: oldCr.organizationName,
+        requestedByName: oldCr.requestedByName,
+        entityType: oldCr.entityType,
+        changeSummary: oldCr.changeSummary,
+        oldData: oldCr.oldData,
+        newData: oldCr.newData,
+        reason: oldCr.reason,
+        status: 'REJECTED',
+        createdAt: oldCr.createdAt,
+      );
+      _addNotification('Change Request #${oldCr.id} rejected.');
+      notifyListeners();
+    }
+  }
+
+  void submitChangeRequest(ChangeRequestModel cr) {
+    _changeRequests.insert(0, cr);
+    _addNotification('Submitted Change Request #${cr.id}: ${cr.changeSummary}');
+    notifyListeners();
+  }
+
+  void requestDoctorAppointment(AppointmentRequestModel appointment) {
+    _appointmentRequests.insert(0, appointment);
+    _addNotification('Appointment request submitted for ${appointment.patientName} with ${appointment.doctorName}.');
+    notifyListeners();
+  }
+
+  void reportIncorrectInformation({
+    required String hospitalName,
+    required String reportType,
+    required String description,
+  }) {
+    _addNotification('Inaccuracy report for $hospitalName submitted to CareLink Moderation Desk.');
     notifyListeners();
   }
 
