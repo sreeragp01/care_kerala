@@ -119,8 +119,21 @@ class LocalDatabaseService {
             created_at TEXT
           )
         ''');
+
+        // Auth Session Table
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS auth_session (
+            id TEXT PRIMARY KEY,
+            token TEXT,
+            refresh_token TEXT,
+            user_json TEXT,
+            is_logged_in INTEGER DEFAULT 1,
+            last_active TEXT
+          )
+        ''');
       },
     );
+
   }
 
 

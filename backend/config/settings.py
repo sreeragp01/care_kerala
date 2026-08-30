@@ -2,13 +2,15 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 try:
     from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / '.env')
+    load_dotenv(BASE_DIR.parent / '.env')
     load_dotenv()
 except ImportError:
     pass
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-carelink-kerala-palliative-secret-key-prod')
 
@@ -56,8 +58,6 @@ MIDDLEWARE = [
     'apps.organizations.middleware.TenantMiddleware',
 ]
 
-
-
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
@@ -78,17 +78,48 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database Configuration (PostgreSQL in Production, SQLite Fallback for Local Dev)
-DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite')
-if DB_ENGINE == 'postgresql':
+# Database Configuration (Supabase PostgreSQL / Direct PostgreSQL / SQLite Fallback)
+DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
+DB_ENGINE = os.getenv('DB_ENGINE', '').lower()
+
+if DATABASE_URL:
+    try:
+        import dj_database_url
+        DATABASES = {
+            'default': dj_database_url.config(
+                default=DATABASE_URL,
+                conn_max_age=600,
+                ssl_require=True if ('supabase' in DATABASE_URL or 'pooler' in DATABASE_URL) else False,
+            )
+        }
+    except Exception:
+        from urllib.parse import urlparse, unquote
+        parsed = urlparse(DATABASE_URL)
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': parsed.path.lstrip('/') or 'postgres',
+                'USER': unquote(parsed.username) if parsed.username else 'postgres',
+                'PASSWORD': unquote(parsed.password) if parsed.password else '',
+                'HOST': parsed.hostname or 'localhost',
+                'PORT': parsed.port or 5432,
+                'OPTIONS': {
+                    'sslmode': 'require' if ('supabase' in (parsed.hostname or '')) else 'prefer',
+                }
+            }
+        }
+elif DB_ENGINE == 'postgresql':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'carelink_db'),
-            'USER': os.getenv('DB_USER', 'carelink_user'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'carelink_secure_pass'),
+            'NAME': os.getenv('DB_NAME', 'postgres'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'localhost'),
             'PORT': os.getenv('DB_PORT', '5432'),
+            'OPTIONS': {
+                'sslmode': os.getenv('DB_SSLMODE', 'require'),
+            }
         }
     }
 else:

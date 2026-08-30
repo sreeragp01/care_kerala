@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/clinical_models.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/state/app_state_provider.dart';
+import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/payment_gateway_dialog.dart';
 import 'fundraiser_detail_screen.dart';
 
@@ -35,7 +36,7 @@ class _MedicalFundraisingScreenState extends State<MedicalFundraisingScreen> {
           final matchesSearch = f.patientName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
               f.treatmentTitle.toLowerCase().contains(_searchQuery.toLowerCase()) ||
               f.hospitalName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              f.district.toLowerCase().contains(_searchQuery.toLowerCase());
+              f.district.toLowerCase() == _selectedCategory.toLowerCase();
 
           return matchesCategory && matchesSearch;
         }).toList();
@@ -51,137 +52,111 @@ class _MedicalFundraisingScreenState extends State<MedicalFundraisingScreen> {
               ),
             ],
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Hero Banner
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDark
-                          ? [const Color(0xFF2C1E3A), const Color(0xFF16101E)]
-                          : [const Color(0xFFEDE7F6), const Color(0xFFF3E5F5)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.volunteer_activism_rounded, color: Colors.purple, size: 26),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Verified Hospital Treatment Appeals',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Direct hospital-verified crowdfunding for patients needing high-cost cardiac surgeries, cancer therapies, and organ transplants.',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Search & Filter Header
-                TextField(
-                  onChanged: (val) => setState(() => _searchQuery = val),
-                  decoration: InputDecoration(
-                    hintText: 'Search patient, surgery, or hospital...',
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _searchQuery = ''))
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      'All',
-                      'Pediatric Cardiac',
-                      'Oncology',
-                      'Orthopedic Surgery',
-                      'Kozhikode',
-                      'Ernakulam',
-                    ].map((cat) {
-                      final isSelected = _selectedCategory == cat;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          label: Text(cat, style: const TextStyle(fontSize: 12)),
-                          selected: isSelected,
-                          selectedColor: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-                          onSelected: (_) => setState(() => _selectedCategory = cat),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Active Treatment Fundraisers List
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Active Critical Appeals',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '${fundraisers.length} Campaigns',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                if (fundraisers.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkSurface : AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
-                    ),
-                    child: Column(
+          body: GlassScaffoldBackground(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Hero Banner
+                  GlassCard(
+                    borderRadius: 18,
+                    blur: 14,
+                    padding: const EdgeInsets.all(16),
+                    customFillColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.12),
+                    customBorderColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.35),
+                    child: Row(
                       children: [
-                        Icon(Icons.search_off_rounded, size: 44, color: isDark ? AppColors.darkTextLight : AppColors.textLight),
-                        const SizedBox(height: 10),
-                        Text('No medical fundraisers found matching "$_searchQuery"', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.volunteer_activism_rounded, color: AppColors.primaryGreen, size: 26),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Verified Hospital Treatment Appeals',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Direct hospital-verified crowdfunding for patients needing high-cost cardiac surgeries, cancer therapies, and organ transplants.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  )
-                else
-                  ...fundraisers.map((f) => _buildFundraiserCard(context, f, isDark)),
-              ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Search & Filter Header
+                  TextField(
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                    decoration: InputDecoration(
+                      hintText: 'Search patient, surgery, or hospital...',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _searchQuery = ''))
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        'All',
+                        'Pediatric Cardiac',
+                        'Oncology',
+                        'Orthopedic Surgery',
+                        'Kozhikode',
+                        'Ernakulam',
+                      ].map((cat) {
+                        final isSelected = _selectedCategory == cat;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(cat, style: const TextStyle(fontSize: 12)),
+                            selected: isSelected,
+                            selectedColor: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
+                            onSelected: (_) => setState(() => _selectedCategory = cat),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (fundraisers.isEmpty)
+                    GlassCard(
+                      borderRadius: 16,
+                      blur: 10,
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        children: [
+                          Icon(Icons.search_off_rounded, size: 44, color: isDark ? AppColors.darkTextLight : AppColors.textLight),
+                          const SizedBox(height: 10),
+                          Text('No medical fundraisers found matching "$_searchQuery"', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    )
+                  else
+                    ...fundraisers.map((f) => _buildFundraiserCard(context, f, isDark)),
+                ],
+              ),
             ),
           ),
           floatingActionButton: FloatingActionButton.extended(
@@ -198,32 +173,30 @@ class _MedicalFundraisingScreenState extends State<MedicalFundraisingScreen> {
   Widget _buildFundraiserCard(BuildContext context, MedicalFundraiserModel f, bool isDark) {
     final pct = (f.percentFunded * 100).toInt();
 
-    return Card(
+    return GlassCard(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => FundraiserDetailScreen(state: widget.state, fundraiser: f),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.all(14.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      borderRadius: 18,
+      blur: 14,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FundraiserDetailScreen(state: widget.state, fundraiser: f),
+          ),
+        );
+      },
+      padding: const EdgeInsets.all(14.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Doctor Verification Badge & Days Remaining
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              // Doctor Verification Badge & Days Remaining
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
+
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -417,7 +390,7 @@ class _MedicalFundraisingScreenState extends State<MedicalFundraisingScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () => _shareOnWhatsApp(context, f),
                           icon: const Icon(Icons.share_rounded, size: 14, color: Colors.teal),
-                          label: const Text('Share Appeal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Share Appeal', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                           ),
@@ -428,7 +401,7 @@ class _MedicalFundraisingScreenState extends State<MedicalFundraisingScreen> {
                         child: ElevatedButton.icon(
                           onPressed: () => _openPaymentModal(context, f),
                           icon: const Icon(Icons.favorite_rounded, size: 14),
-                          label: const Text('Contribute', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Contribute', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
                             foregroundColor: Colors.white,
@@ -438,14 +411,14 @@ class _MedicalFundraisingScreenState extends State<MedicalFundraisingScreen> {
                       ),
                     ],
                   );
+
                 },
               ),
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
+
 
   void _shareOnWhatsApp(BuildContext context, MedicalFundraiserModel f) {
     ScaffoldMessenger.of(context).showSnackBar(

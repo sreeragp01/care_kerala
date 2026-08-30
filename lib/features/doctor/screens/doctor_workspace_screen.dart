@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/clinical_models.dart';
 import '../../../core/models/patient_model.dart';
 import '../../../core/state/app_state_provider.dart';
+import '../../../core/widgets/glass_card.dart';
 
 class DoctorWorkspaceScreen extends StatefulWidget {
   final AppStateProvider state;
@@ -59,18 +60,21 @@ class _DoctorWorkspaceScreenState extends State<DoctorWorkspaceScreen> with Sing
               ],
             ),
           ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildConsultRequestsTab(context, isDark),
-              _buildAssignedPatientsTab(context, isDark),
-              _buildEmergencyAppealsTab(context, isDark),
-            ],
+          body: GlassScaffoldBackground(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildConsultRequestsTab(context, isDark),
+                _buildAssignedPatientsTab(context, isDark),
+                _buildEmergencyAppealsTab(context, isDark),
+              ],
+            ),
           ),
         );
       },
     );
   }
+
 
   // ==========================================
   // TAB 1: Pending Consult Requests & Triage
@@ -85,96 +89,100 @@ class _DoctorWorkspaceScreenState extends State<DoctorWorkspaceScreen> with Sing
         final apt = appointments[i];
         final isConfirmed = apt.status == 'Confirmed';
 
-        return Card(
+        return GlassCard(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isConfirmed
-                            ? (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
-                            : (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        apt.type,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: isConfirmed ? AppColors.primaryGreen : AppColors.warning,
-                        ),
+          borderRadius: 16,
+          blur: 12,
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isConfirmed
+                          ? (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
+                          : (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: (isConfirmed ? AppColors.primaryGreen : AppColors.warning).withValues(alpha: 0.3),
+                        width: 1,
                       ),
                     ),
-                    Text(
-                      'Status: ${apt.status}',
+                    child: Text(
+                      apt.type,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: isConfirmed ? AppColors.primaryGreen : (apt.status == 'Declined' ? AppColors.danger : AppColors.warning),
+                        color: isConfirmed ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen) : AppColors.warning,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Status: ${apt.status}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isConfirmed ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen) : (apt.status == 'Declined' ? AppColors.danger : AppColors.warning),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(apt.patientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text('Scheduled: ${apt.date} at ${apt.time} • Assigned to: ${apt.doctorName}',
+                  style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+              Divider(height: 20, color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
+              Row(
+                children: [
+                  if (!isConfirmed && apt.status != 'Declined') ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          widget.state.rejectDoctorConsultation(apt.id);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Declined consult request for ${apt.patientName}')),
+                          );
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.danger),
+                        label: const Text('Decline', style: TextStyle(fontSize: 11, color: AppColors.danger)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showAcceptConsultDialog(context, apt),
+                        icon: const Icon(Icons.check_circle_rounded, size: 16),
+                        label: const Text('Accept & Schedule', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                          foregroundColor: isDark ? const Color(0xFF06281E) : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ] else if (isConfirmed) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _launchTeleConsult(context, apt),
+                        icon: const Icon(Icons.video_call_rounded, size: 18),
+                        label: const Text('Launch Tele-Palliative Video Call', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                          foregroundColor: isDark ? const Color(0xFF06281E) : Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Text(apt.patientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('Scheduled: ${apt.date} at ${apt.time} • Assigned to: ${apt.doctorName}',
-                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
-                const Divider(height: 20),
-                Row(
-                  children: [
-                    if (!isConfirmed && apt.status != 'Declined') ...[
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            widget.state.rejectDoctorConsultation(apt.id);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Declined consult request for ${apt.patientName}')),
-                            );
-                          },
-                          icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.danger),
-                          label: const Text('Decline', style: TextStyle(fontSize: 11, color: AppColors.danger)),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showAcceptConsultDialog(context, apt),
-                          icon: const Icon(Icons.check_circle_rounded, size: 16),
-                          label: const Text('Accept & Schedule', style: TextStyle(fontSize: 11)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ] else if (isConfirmed) ...[
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _launchTeleConsult(context, apt),
-                          icon: const Icon(Icons.video_call_rounded, size: 18),
-                          label: const Text('Launch Tele-Palliative Video Call', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         );
+
       },
     );
   }
@@ -271,16 +279,16 @@ class _DoctorWorkspaceScreenState extends State<DoctorWorkspaceScreen> with Sing
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () => _showPrescriptionDialog(context, p),
-                              icon: const Icon(Icons.medication_rounded, size: 16),
-                              label: const Text('Prescribe Rx & Opioids', style: TextStyle(fontSize: 11)),
+                              icon: const Icon(Icons.medication_rounded, size: 15),
+                              label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Prescribe Rx', style: TextStyle(fontSize: 11))),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () => _showEditCarePlanDialog(context, p),
-                              icon: const Icon(Icons.edit_note_rounded, size: 16),
-                              label: const Text('Update Care Plan', style: TextStyle(fontSize: 11)),
+                              icon: const Icon(Icons.edit_note_rounded, size: 15),
+                              label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Update Care Plan', style: TextStyle(fontSize: 11))),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
                                 foregroundColor: Colors.white,
@@ -289,6 +297,7 @@ class _DoctorWorkspaceScreenState extends State<DoctorWorkspaceScreen> with Sing
                           ),
                         ],
                       ),
+
                     ],
                   ),
                 ),

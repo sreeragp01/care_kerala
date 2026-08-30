@@ -25,8 +25,10 @@ import '../../doctor/screens/doctor_workspace_screen.dart';
 import '../../nurse/screens/nurse_operations_screen.dart';
 import '../../coordinator/screens/coordinator_workspace_screen.dart';
 import '../widgets/patient_portal_view.dart';
+import '../../../core/widgets/glass_card.dart';
 
 class DashboardScreen extends StatefulWidget {
+
   final AppStateProvider state;
 
   const DashboardScreen({super.key, required this.state});
@@ -52,32 +54,115 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            titleSpacing: 8,
+            title: Row(
               children: [
-                Text(
-                  isPatient
-                      ? (isMalayalam ? 'കെയർലിങ്ക് കേരളം — രോഗി പോർട്ടൽ' : 'CareLink Kerala — Patient Portal')
-                      : (org?.name ?? loc.translate('app_title')),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                // Official Brand Icon Badge
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: const LinearGradient(
+                      colors: [AppColors.brandNavy, AppColors.brandTeal],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.brandTeal.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      'assets/images/app_icon.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, stack) => const Center(
+                        child: Icon(Icons.health_and_safety_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ),
                 ),
-                Text(
-                  isPatient
-                      ? (isMalayalam ? 'രോഗി: ${user.name} • ${AppLocalizations.getDistrictName(user.district, isMalayalam: true)}' : 'Patient: ${user.name} • ${user.district}')
-                      : (isMalayalam ? 'പങ്ക്: ${user.role.displayName} • ${AppLocalizations.getDistrictName(user.district, isMalayalam: true)}' : 'Role: ${user.role.displayName} • ${user.district}'),
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.normal),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Care',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: widget.state.isDarkMode ? Colors.white : AppColors.brandNavy,
+                              ),
+                            ),
+                            const Text(
+                              'Link',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.brandTeal,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.brandTeal.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'KERALA',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                  color: AppColors.brandTeal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        isPatient
+                            ? (isMalayalam ? 'രോഗി: ${user.name} • ${AppLocalizations.getDistrictName(user.district, isMalayalam: true)}' : 'Patient: ${user.name} • ${user.district}')
+                            : (org?.name ?? 'Palliative Care Unit • ${user.role.displayName}'),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: widget.state.isDarkMode ? const Color(0xFFA7F3D0) : AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
+
             actions: [
               // Emergency Rapid SOS Shortcut
               IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 tooltip: 'Emergency SOS & Ambulance Help',
-                icon: const Icon(Icons.emergency_rounded, color: AppColors.danger, size: 24),
+                icon: const Icon(Icons.emergency_rounded, color: AppColors.danger, size: 22),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -88,53 +173,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
 
-              // Offline Sync Indicator Badge (only for staff who record offline clinical notes)
+              // Offline Sync Indicator Badge
               if (!isPatient && widget.state.pendingOfflineSyncCount > 0)
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   tooltip: '${widget.state.pendingOfflineSyncCount} Offline Drafts Cached',
                   icon: Badge(
                     label: Text('${widget.state.pendingOfflineSyncCount}'),
                     backgroundColor: AppColors.warning,
-                    child: const Icon(Icons.cloud_off_rounded, color: AppColors.warning, size: 22),
+                    child: const Icon(Icons.cloud_off_rounded, color: AppColors.warning, size: 20),
                   ),
                   onPressed: () => widget.state.syncOfflineQueue(),
                 ),
 
-              // Quick Demo Persona Switcher
+              // Theme Mode Toggle (Bright / Dark)
               IconButton(
-                tooltip: 'Switch Demo Role Persona',
-                icon: const Icon(Icons.switch_account_rounded, size: 22, color: AppColors.accentGold),
-                onPressed: () => _showPersonaSwitchBottomSheet(context),
-              ),
-
-              // Theme Mode Toggle (Light / Dark)
-              IconButton(
-                tooltip: widget.state.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                tooltip: widget.state.isDarkMode ? 'Switch to Bright Mode' : 'Switch to Dark Mode',
                 icon: Icon(
                   widget.state.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                  color: widget.state.isDarkMode ? AppColors.accentGold : AppColors.primaryGreen,
-                  size: 22,
+                  color: widget.state.isDarkMode ? AppColors.accentGold : AppColors.brandNavy,
+                  size: 20,
                 ),
                 onPressed: () => widget.state.toggleDarkMode(),
               ),
 
-              // Language Toggle
-              TextButton(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: Size.zero,
-                ),
-                onPressed: () {
-                  widget.state.setLocale(
-                    isMalayalam ? const Locale('en') : const Locale('ml'),
-                  );
-                },
-                child: Text(
-                  isMalayalam ? 'EN' : 'മലയാളം',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: widget.state.isDarkMode ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+              // Compact Language Toggle Badge
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0, left: 2.0),
+                child: InkWell(
+                  onTap: () {
+                    widget.state.setLocale(
+                      isMalayalam ? const Locale('en') : const Locale('ml'),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (widget.state.isDarkMode ? AppColors.darkPrimaryGreen : AppColors.brandNavy).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: (widget.state.isDarkMode ? AppColors.darkPrimaryGreen : AppColors.brandNavy).withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      isMalayalam ? 'EN' : 'മല',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: widget.state.isDarkMode ? AppColors.darkPrimaryGreen : AppColors.brandNavy,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -150,9 +245,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           drawer: _buildDrawer(context, loc, isPatient),
-          body: isPatient
-              ? PatientPortalView(state: widget.state)
-              : _buildDashboardContent(context, loc),
+          body: GlassScaffoldBackground(
+            child: isPatient
+                ? PatientPortalView(state: widget.state)
+                : _buildDashboardContent(context, loc),
+          ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () {
               Navigator.push(
@@ -220,102 +317,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           // Phase 6: Persistent Offline & Sync Status Bar
           SyncStatusBar(state: widget.state),
+          const SizedBox(height: 12),
+
+          // Triage Status Glowing Pills Bar (Critical, High Risk, Monitored)
+          _buildTriagePillsBar(context, isDark),
           const SizedBox(height: 14),
 
           // Role-Based Workspace Hub Quick Launch Card
           _buildRoleWorkspaceCard(context, isDark),
+          const SizedBox(height: 14),
+
+          // Prominent Glowing Crimson Emergency SOS Bar
+          _buildEmergencySosActionBar(context, isDark),
           const SizedBox(height: 16),
 
           // Schedule Banner for Nurse/Volunteer
           if (widget.state.currentUser.role == UserRole.nurse || widget.state.currentUser.role == UserRole.volunteer)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? AppColors.darkPrimaryGreen.withValues(alpha: 0.5) : AppColors.secondaryGreen),
-              ),
+            _buildScheduleBanner(context, isDark),
 
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isNarrow = constraints.maxWidth < 360;
-                  if (isNarrow) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.directions_walk_rounded, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, size: 24),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                "Today's Field Schedule Active",
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${widget.state.todaysVisitsCount} Patients scheduled for home visit in ${widget.state.currentUser.district}.',
-                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => VisitScheduleScreen(state: widget.state)));
-                            },
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                            child: const Text('Start Schedule', style: TextStyle(fontSize: 11)),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Icon(Icons.directions_walk_rounded, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, size: 26),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Today's Field Schedule Active",
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${widget.state.todaysVisitsCount} Patients scheduled for home visit in ${widget.state.currentUser.district}.',
-                              style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => VisitScheduleScreen(state: widget.state)));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          minimumSize: Size.zero,
-                        ),
-                        child: const Text('Start Schedule', style: TextStyle(fontSize: 11)),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
+          // Upcoming Home Visits Glass Feed
+          if (widget.state.currentUser.role == UserRole.nurse || widget.state.currentUser.role == UserRole.volunteer || widget.state.currentUser.role.isAdmin)
+            _buildUpcomingVisitsFeed(context, isDark),
 
           // KPI Stats Cards Grid
+          const SizedBox(height: 8),
           GridView.count(
             crossAxisCount: screenWidth > 900
                 ? 4
@@ -324,7 +349,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisSpacing: 10,
             childAspectRatio: screenWidth > 900
                 ? 1.45
-                : (screenWidth > 600 ? 1.35 : 1.28),
+                : (screenWidth > 600 ? 1.35 : 1.20),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
@@ -372,6 +397,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+
           const SizedBox(height: 24),
 
           // Main Module Actions Grid
@@ -415,48 +441,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisCount: screenWidth > 900 ? 6 : (screenWidth > 600 ? 4 : 3),
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: screenWidth > 600 ? 1.05 : 0.96,
+                childAspectRatio: screenWidth > 600 ? 1.08 : 0.94,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: shortcuts,
               );
             },
           ),
+
           const SizedBox(height: 24),
 
-          // Recent Activity Feed Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Recent Community Activity',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      TextButton(
-                        onPressed: () => _showNotificationsBottomSheet(context),
-                        child: const Text('View All'),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-                  ...widget.state.notifications.take(4).map(
-                        (note) => ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-                            child: Icon(Icons.notifications_active_rounded, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, size: 18),
+          // Recent Activity Feed Glass Card
+          GlassCard(
+            borderRadius: 18,
+            blur: 14,
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Recent Community Activity',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    TextButton(
+                      onPressed: () => _showNotificationsBottomSheet(context),
+                      child: const Text('View All', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                Divider(color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
+                ...widget.state.notifications.take(4).map(
+                      (note) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
                           ),
-                          title: Text(note, style: const TextStyle(fontSize: 13)),
+                          child: Icon(
+                            Icons.notifications_active_rounded,
+                            color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                            size: 16,
+                          ),
                         ),
+                        title: Text(note, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                       ),
-                ],
-              ),
+                    ),
+              ],
             ),
           ),
         ],
@@ -464,322 +500,557 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildTriagePillsBar(BuildContext context, bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: GlassCard(
+            blur: 10,
+            borderRadius: 14,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            customFillColor: const Color(0x2EE11D48),
+            customBorderColor: const Color(0x66E11D48),
+            hasGlow: true,
+            glowColor: AppColors.danger,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PatientListScreen(state: widget.state, initialFilterTier: 'High Risk'),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Color(0xFFFF6B6B), size: 14),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'Critical (${widget.state.criticalPatientsCount})',
+                    style: const TextStyle(
+                      color: Color(0xFFFF6B6B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GlassCard(
+            blur: 10,
+            borderRadius: 14,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            customFillColor: const Color(0x2ED97706),
+            customBorderColor: const Color(0x66D97706),
+            hasGlow: true,
+            glowColor: AppColors.warning,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PatientListScreen(state: widget.state, initialFilterTier: 'High Risk'),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Color(0xFFFBBF24), size: 14),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'High Risk (${widget.state.patients.where((p) => p.riskLevel == "High Risk").length})',
+                    style: const TextStyle(
+                      color: Color(0xFFFBBF24),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: GlassCard(
+            blur: 10,
+            borderRadius: 14,
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            customFillColor: const Color(0x2E10B981),
+            customBorderColor: const Color(0x6610B981),
+            hasGlow: true,
+            glowColor: AppColors.primaryGreen,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PatientListScreen(state: widget.state),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF34D399), size: 14),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'Monitored (${widget.state.activePatientsCount})',
+                    style: const TextStyle(
+                      color: Color(0xFF34D399),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmergencySosActionBar(BuildContext context, bool isDark) {
+    return GlassCard(
+      blur: 16,
+      borderRadius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      customFillColor: const Color(0x38EF4444),
+      customBorderColor: const Color(0x75EF4444),
+      hasGlow: true,
+      glowColor: AppColors.danger,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => EmergencySosScreen(state: widget.state)),
+        );
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.emergency_rounded, color: Color(0xFFFCA5A5), size: 20),
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            'SOS EMERGENCY',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              letterSpacing: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildScheduleBanner(BuildContext context, bool isDark) {
+    return GlassCard(
+      borderRadius: 14,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      customFillColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.08),
+      customBorderColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.25),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.directions_walk_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Today's Field Schedule Active",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${widget.state.todaysVisitsCount} Patients scheduled for home visit in ${widget.state.currentUser.district}.',
+                  style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => VisitScheduleScreen(state: widget.state)));
+            },
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: Size.zero,
+            ),
+            child: const Text('Start', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildUpcomingVisitsFeed(BuildContext context, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'UPCOMING HOME VISITS',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+                color: isDark ? const Color(0xFF34D399) : AppColors.primaryGreen,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FieldMapScreen(state: widget.state))),
+              icon: Icon(Icons.map_outlined, size: 14, color: isDark ? const Color(0xFF34D399) : AppColors.primaryGreen),
+              label: Text('Live Map', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF34D399) : AppColors.primaryGreen)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ...widget.state.visits.take(3).map((visit) {
+          return GlassCard(
+            blur: 14,
+            borderRadius: 16,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            customFillColor: isDark
+                ? const Color(0x350F372B)
+                : const Color(0xF2FFFFFF),
+            customBorderColor: isDark
+                ? const Color(0x3A52B788)
+                : const Color(0xFFE2E8F0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            visit.scheduledTime,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? const Color(0xFF34D399) : AppColors.primaryGreen,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              visit.patientName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isDark ? Colors.white : AppColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Follow-up: Routine Palliative Assessment',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFF94A3B8) : AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '[${visit.assignedNurseName}]',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF6EE7B7) : AppColors.primaryGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FieldMapScreen(state: widget.state))),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (isDark ? const Color(0xFF10B981) : AppColors.primaryGreen).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: (isDark ? const Color(0xFF34D399) : AppColors.primaryGreen).withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.map_rounded,
+                      color: isDark ? const Color(0xFF34D399) : AppColors.primaryGreen,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+
   Widget _buildModuleShortcut(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return InkWell(
+    return GlassCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: isDark ? 0.22 : 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 6),
-              Flexible(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+      borderRadius: 16,
+      blur: 12,
+      padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 8.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
           ),
-        ),
+          const SizedBox(height: 6),
+          Flexible(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildRoleWorkspaceCard(BuildContext context, bool isDark) {
+
     final user = widget.state.currentUser;
 
-    if (user.role.isAdmin) {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkSurfaceLight, AppColors.darkSurface]
-                  : [const Color(0xFFE8F5E9), const Color(0xFFF1F8F5)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return GlassCard(
+      blur: 16,
+      borderRadius: 20,
+      padding: const EdgeInsets.all(16),
+      customFillColor: isDark
+          ? const Color(0x350F372B)
+          : const Color(0xE6FFFFFF),
+      customBorderColor: isDark
+          ? const Color(0x3A52B788)
+          : const Color(0xFFE2E8F0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                      shape: BoxShape.circle,
+                  Text(
+                    'ROLE WORKSPACE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: isDark ? const Color(0xFF34D399) : AppColors.primaryGreen,
                     ),
-                    child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 20),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Admin Master Control Center',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        Text(
-                          'Full governance: Banking & QR, Patient Master, Inventory Catalog & Staff Roles',
-                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                        ),
-                      ],
+                  const SizedBox(height: 2),
+                  Text(
+                    'Quick Launch',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => AdminControlCenterScreen(state: widget.state)));
-                    },
-                    icon: const Icon(Icons.tune_rounded, size: 15),
-                    label: const Text('Open Master Control Console', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      minimumSize: Size.zero,
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  user.role.displayName,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? const Color(0xFF34D399) : AppColors.primaryGreen,
                   ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-    } else if (user.role == UserRole.doctor) {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkSurfaceLight, AppColors.darkSurface]
-                  : [const Color(0xFFE0F2FE), const Color(0xFFF0FDF4)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Colors.teal,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.medical_services_rounded, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Doctor Clinical Workbench',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        Text(
-                          'Accept consultation requests, edit care plans, prescribe opioids & review SOS alarms',
-                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => DoctorWorkspaceScreen(state: widget.state)));
-                },
-                icon: const Icon(Icons.medical_information_rounded, size: 15),
-                label: const Text('Open Doctor Workbench', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
                 ),
               ),
             ],
           ),
-        ),
-      );
-    } else if (user.role == UserRole.nurse) {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkSurfaceLight, AppColors.darkSurface]
-                  : [const Color(0xFFDCFCE7), const Color(0xFFF1F8F5)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 14),
+          // Role Quick Launch Bar matching preview mockup
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryGreen,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.home_work_rounded, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Nurse Home Care Hub',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        Text(
-                          'Accept visit queue, log bedside vitals & catheter care, and dispense medicines',
-                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              _buildRoleQuickLaunchButton(
+                context,
+                title: 'Doctor',
+                icon: Icons.medical_services_rounded,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DoctorWorkspaceScreen(state: widget.state))),
+                isSelected: user.role == UserRole.doctor,
+                isDark: isDark,
               ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => NurseOperationsScreen(state: widget.state)));
-                },
-                icon: const Icon(Icons.home_work_rounded, size: 15),
-                label: const Text('Open Nurse Home Care Hub', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                ),
+              _buildRoleQuickLaunchButton(
+                context,
+                title: 'Nurse',
+                icon: Icons.person_rounded,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NurseOperationsScreen(state: widget.state))),
+                isSelected: user.role == UserRole.nurse,
+                isDark: isDark,
+              ),
+              _buildRoleQuickLaunchButton(
+                context,
+                title: 'Coordinator',
+                icon: Icons.groups_rounded,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CoordinatorWorkspaceScreen(state: widget.state))),
+                isSelected: user.role == UserRole.volunteer || user.role == UserRole.reception,
+                isDark: isDark,
+              ),
+              _buildRoleQuickLaunchButton(
+                context,
+                title: 'Admin',
+                icon: Icons.verified_user_rounded,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminControlCenterScreen(state: widget.state))),
+                isSelected: user.role.isAdmin,
+                isDark: isDark,
               ),
             ],
           ),
-        ),
-      );
-    } else if (user.role == UserRole.volunteer || user.role == UserRole.reception) {
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [AppColors.darkSurfaceLight, AppColors.darkSurface]
-                  : [const Color(0xFFFEF3C7), const Color(0xFFFFFBEB)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleQuickLaunchButton(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isSelected,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF10B981), Color(0xFF047857)],
+                    )
+                  : (isDark
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0x5010B981), Color(0x30064E3B)],
+                        )
+                      : const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFE6F4EE), Color(0xFFD1FAE5)],
+                        )),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? const Color(0xFF34D399)
+                    : (isDark ? const Color(0x4034D399) : const Color(0xFF10B981).withValues(alpha: 0.3)),
+                width: isSelected ? 1.5 : 1,
+              ),
+              boxShadow: [
+                if (isSelected)
+                  BoxShadow(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? const Color(0xFF34D399) : AppColors.primaryGreen),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: AppColors.accentGold,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.volunteer_activism_rounded, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Community Coordinator & Volunteer Desk',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        Text(
-                          'Triage patient nominations, moderate medical appeals, and allocate relief kits',
-                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => CoordinatorWorkspaceScreen(state: widget.state)));
-                },
-                icon: const Icon(Icons.volunteer_activism_rounded, size: 15),
-                label: const Text('Open Coordinator Desk', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accentGold,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                ),
-              ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected
+                  ? (isDark ? Colors.white : AppColors.textPrimary)
+                  : (isDark ? const Color(0xFFA7F3D0) : AppColors.textSecondary),
+            ),
+            maxLines: 1,
           ),
-        ),
-      );
-    }
-    return const SizedBox.shrink();
+        ],
+      ),
+    );
   }
 
   Widget _buildDrawer(BuildContext context, AppLocalizations loc, bool isPatient) {
+
+
     final user = widget.state.currentUser;
 
 
@@ -1032,167 +1303,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
-  }
-
-  void _showPersonaSwitchBottomSheet(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.4,
-        expand: false,
-        builder: (ctx, scrollController) => Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentGold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.switch_account_rounded, color: AppColors.accentGold, size: 22),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Switch Demo Role Persona',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Instant 1-click switch to test permissions & tailored views across all 10 roles:',
-                style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: widget.state.demoUsers.length,
-                  itemBuilder: (ctx, i) {
-                    final u = widget.state.demoUsers[i];
-                    final isSelected = widget.state.currentUser.role == u.role;
-
-                    return Card(
-                      color: isSelected
-                          ? (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
-                          : null,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: isSelected
-                              ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
-                              : (isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
-                          width: isSelected ? 1.5 : 1.0,
-                        ),
-                      ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isSelected
-                              ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
-                              : (isDark ? AppColors.darkSurfaceLight : AppColors.lightSand),
-                          child: Icon(
-                            _getRoleIcon(u.role),
-                            color: isSelected ? Colors.white : (isDark ? AppColors.darkTextLight : AppColors.primaryGreen),
-                            size: 20,
-                          ),
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                u.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                u.role.displayName,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          u.email,
-                          style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                        ),
-                        trailing: isSelected
-                            ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryGreen, size: 22)
-                            : OutlinedButton(
-                                onPressed: () {
-                                  widget.state.loginAsUser(u);
-                                  Navigator.pop(ctx);
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  minimumSize: Size.zero,
-                                ),
-                                child: const Text('Switch', style: TextStyle(fontSize: 11)),
-                              ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _getRoleIcon(UserRole role) {
-    switch (role) {
-      case UserRole.patient:
-        return Icons.personal_injury_rounded;
-      case UserRole.familyMember:
-        return Icons.family_restroom_rounded;
-      case UserRole.nurse:
-        return Icons.medical_services_rounded;
-      case UserRole.doctor:
-        return Icons.health_and_safety_rounded;
-      case UserRole.volunteer:
-        return Icons.groups_rounded;
-      case UserRole.ambulanceDriver:
-        return Icons.airport_shuttle_rounded;
-      case UserRole.pharmacist:
-        return Icons.medication_rounded;
-      case UserRole.orgAdmin:
-        return Icons.admin_panel_settings_rounded;
-      case UserRole.superAdmin:
-        return Icons.shield_rounded;
-      case UserRole.palliativeMember:
-        return Icons.volunteer_activism_rounded;
-      default:
-        return Icons.person_rounded;
-    }
   }
 }

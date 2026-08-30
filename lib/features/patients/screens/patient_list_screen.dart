@@ -4,6 +4,7 @@ import '../../../core/localization/app_localizations.dart';
 import '../../../core/models/patient_model.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/state/app_state_provider.dart';
+import '../../../core/widgets/glass_card.dart';
 import '../../blood_donors/screens/blood_donor_directory_screen.dart';
 import '../widgets/patient_referral_dialog.dart';
 import 'patient_detail_screen.dart';
@@ -89,87 +90,88 @@ class _PatientListScreenState extends State<PatientListScreen> {
             onPressed: () => PatientReferralDialog.show(context, widget.state),
           ),
         ],
-
       ),
-      body: Column(
-        children: [
-          // Search & Filter Header
-          Container(
-            color: isDark ? AppColors.darkSurface : AppColors.surface,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              children: [
-                TextField(
-                  onChanged: (val) => setState(() => _searchQuery = val),
-                  decoration: InputDecoration(
-                    hintText: 'Search by patient name, ward, diagnosis, or referrer...',
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _searchQuery = ''))
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      'All',
-                      'Pending Triage',
-                      'Category A',
-                      'High Risk',
-                      'Kozhikode',
-                      'Ernakulam',
-                    ].map((filter) {
-                      final isSelected = _selectedFilter == filter;
-                      final isTriageTab = filter == 'Pending Triage';
-
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          avatar: isTriageTab ? const Icon(Icons.notification_important_rounded, size: 14, color: AppColors.warning) : null,
-                          label: Text(filter),
-                          selected: isSelected,
-                          selectedColor: isTriageTab
-                              ? (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface)
-                              : (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface),
-                          onSelected: (_) => setState(() => _selectedFilter = filter),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // Patient Cards List
-          Expanded(
-            child: filteredPatients.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.folder_off_rounded, size: 64, color: isDark ? AppColors.darkTextLight : AppColors.textLight),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No patients found matching "$_searchQuery"',
-                          style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                        ),
-                      ],
+      body: GlassScaffoldBackground(
+        child: Column(
+          children: [
+            // Search & Filter Header
+            Container(
+              color: isDark ? AppColors.darkSurface.withValues(alpha: 0.6) : AppColors.surface.withValues(alpha: 0.7),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                children: [
+                  TextField(
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                    decoration: InputDecoration(
+                      hintText: 'Search by patient name, ward, diagnosis, or referrer...',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _searchQuery = ''))
+                          : null,
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredPatients.length,
-                    itemBuilder: (context, index) {
-                      final patient = filteredPatients[index];
-                      return _buildPatientCard(context, patient, isDark);
-                    },
                   ),
-          ),
-        ],
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        'All',
+                        'Pending Triage',
+                        'Category A',
+                        'High Risk',
+                        'Kozhikode',
+                        'Ernakulam',
+                      ].map((filter) {
+                        final isSelected = _selectedFilter == filter;
+                        final isTriageTab = filter == 'Pending Triage';
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            avatar: isTriageTab ? const Icon(Icons.notification_important_rounded, size: 14, color: AppColors.warning) : null,
+                            label: Text(filter),
+                            selected: isSelected,
+                            selectedColor: isTriageTab
+                                ? (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface)
+                                : (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface),
+                            onSelected: (_) => setState(() => _selectedFilter = filter),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+
+            // Patient Cards List
+            Expanded(
+              child: filteredPatients.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.folder_off_rounded, size: 64, color: isDark ? AppColors.darkTextLight : AppColors.textLight),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No patients found matching "$_searchQuery"',
+                            style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filteredPatients.length,
+                      itemBuilder: (context, index) {
+                        final patient = filteredPatients[index];
+                        return _buildPatientCard(context, patient, isDark);
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
@@ -192,57 +194,54 @@ class _PatientListScreenState extends State<PatientListScreen> {
       appBar: AppBar(
         title: const Text('Community Patient Referrals'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Privacy Shield Notice
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurfaceLight : AppColors.lightSand,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.shield_outlined, color: AppColors.primaryGreen, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Protected Clinical EHR Registry',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'In compliance with medical confidentiality standards, full health records are restricted to verified Doctors, Community Nurses, and Assigned Volunteers.',
-                          style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, height: 1.3),
-                        ),
-                      ],
+      body: GlassScaffoldBackground(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Privacy Shield Notice
+              GlassCard(
+                padding: const EdgeInsets.all(14),
+                borderRadius: 16,
+                blur: 10,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.shield_outlined, color: AppColors.primaryGreen, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Protected Clinical EHR Registry',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'To safeguard patient medical privacy, full clinical histories are restricted to accredited doctors and palliative nurses.',
+                            style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Hero Nomination Card
-            Card(
-              color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen.withValues(alpha: 0.4)),
-              ),
-              child: Padding(
+              // Hero Nomination Card
+              GlassCard(
+                customFillColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.12),
+                customBorderColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.4),
+                borderRadius: 18,
+                blur: 12,
                 padding: const EdgeInsets.all(18.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+
                     Row(
                       children: [
                         CircleAvatar(
@@ -281,59 +280,55 @@ class _PatientListScreenState extends State<PatientListScreen> {
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // My Submitted Referrals Tracking
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Community Referrals in District',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-                    borderRadius: BorderRadius.circular(6),
+              // My Submitted Referrals Tracking
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Community Referrals in District',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  child: Text(
-                    '${myReferrals.length} Active',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            if (myReferrals.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurface : AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.volunteer_activism_outlined, size: 40, color: isDark ? AppColors.darkTextLight : AppColors.textLight),
-                    const SizedBox(height: 8),
-                    const Text('No community nominations yet.', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Nominate bedridden individuals in your ward to bring them to the notice of local healthcare teams.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                  ],
-                ),
-              )
-            else
-              ...myReferrals.map((ref) => Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
+                    child: Text(
+                      '${myReferrals.length} Active',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              if (myReferrals.isEmpty)
+                GlassCard(
+                  padding: const EdgeInsets.all(24),
+                  borderRadius: 16,
+                  blur: 10,
+                  child: Column(
+                    children: [
+                      Icon(Icons.volunteer_activism_outlined, size: 40, color: isDark ? AppColors.darkTextLight : AppColors.textLight),
+                      const SizedBox(height: 8),
+                      const Text('No community nominations yet.', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Nominate bedridden individuals in your ward to bring them to the notice of local healthcare teams.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...myReferrals.map((ref) => GlassCard(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      borderRadius: 16,
+                      blur: 12,
                       padding: const EdgeInsets.all(14.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +378,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const Divider(height: 16),
+                          Divider(height: 16, color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -410,154 +405,25 @@ class _PatientListScreenState extends State<PatientListScreen> {
                           ),
                         ],
                       ),
-                    ),
-                  )),
+                    )),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Emergency Blood Shortcut
-            Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: isDark ? AppColors.darkDangerSurface : AppColors.dangerSurface,
-                  child: const Icon(Icons.water_drop_rounded, color: AppColors.danger, size: 20),
-                ),
-                title: const Text('Emergency Blood Donor Registry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: const Text('Available to all community members and donors.', style: TextStyle(fontSize: 11)),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+              // Emergency Blood Shortcut
+              GlassCard(
+                borderRadius: 16,
+                blur: 10,
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => BloodDonorDirectoryScreen(state: widget.state)));
                 },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPatientCard(BuildContext context, PatientModel patient, bool isDark) {
-    final isHighRisk = patient.riskLevel == 'High Risk';
-    final isReferral = patient.referredBy != null;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PatientDetailScreen(state: widget.state, patient: patient),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Referral Banner if nominated by community
-              if (isReferral)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkWarningSurface : AppColors.warningSurface,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: isDark ? AppColors.darkDangerSurface : AppColors.dangerSurface,
+                    child: const Icon(Icons.water_drop_rounded, color: AppColors.danger, size: 20),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.campaign_rounded, size: 14, color: AppColors.warning),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Community Referral • Nominated by: ${patient.referredBy} (${patient.referralUrgency ?? "Urgent"})',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.warning),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    backgroundColor: isHighRisk
-                        ? (isDark ? AppColors.darkDangerSurface : AppColors.dangerSurface)
-                        : (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface),
-                    child: Text(
-                      patient.bloodGroup,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: isHighRisk ? AppColors.danger : (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          patient.name,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${patient.age}y • ${patient.gender} • ${patient.ward}, ${patient.district}',
-                          style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isHighRisk
-                          ? (isDark ? AppColors.darkDangerSurface : AppColors.dangerSurface)
-                          : (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      patient.riskLevel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: isHighRisk ? AppColors.danger : AppColors.warning,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceLight : AppColors.lightSand,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.medical_services_outlined, size: 16, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        patient.diagnosis,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                  title: const Text('Emergency Blood Donor Registry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  subtitle: const Text('Available to all community members and donors.', style: TextStyle(fontSize: 11)),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
                 ),
               ),
             ],
@@ -566,4 +432,138 @@ class _PatientListScreenState extends State<PatientListScreen> {
       ),
     );
   }
+
+  Widget _buildPatientCard(BuildContext context, PatientModel patient, bool isDark) {
+
+    final isHighRisk = patient.riskLevel == 'High Risk';
+    final isReferral = patient.referredBy != null;
+
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      borderRadius: 16,
+      blur: 12,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PatientDetailScreen(state: widget.state, patient: patient),
+          ),
+        );
+      },
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Referral Banner if nominated by community
+          if (isReferral)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkWarningSurface : AppColors.warningSurface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.campaign_rounded, size: 14, color: AppColors.warning),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Community Referral • Nominated by: ${patient.referredBy} (${patient.referralUrgency ?? "Urgent"})',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.warning),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: isHighRisk
+                    ? (isDark ? AppColors.darkDangerSurface : AppColors.dangerSurface)
+                    : (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface),
+                child: Text(
+                  patient.bloodGroup,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isHighRisk ? AppColors.danger : (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      patient.name,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${patient.age}y • ${patient.gender} • ${patient.ward}, ${patient.district}',
+                      style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isHighRisk
+                      ? (isDark ? AppColors.darkDangerSurface : AppColors.dangerSurface)
+                      : (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  patient.riskLevel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isHighRisk ? AppColors.danger : AppColors.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceLight.withValues(alpha: 0.5) : const Color(0xFFE8F5E9).withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.medical_services_outlined, size: 16, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    patient.diagnosis,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+

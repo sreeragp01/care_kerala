@@ -15,12 +15,15 @@ void main() {
     });
 
     test('Dark Mode Toggling', () {
-      expect(state.isDarkMode, isFalse);
-      state.toggleDarkMode();
       expect(state.isDarkMode, isTrue);
       state.toggleDarkMode();
       expect(state.isDarkMode, isFalse);
+      state.toggleDarkMode();
+      expect(state.isDarkMode, isTrue);
     });
+
+
+
 
     test('API Base URL Configuration', () {
       expect(state.apiBaseUrl, contains('127.0.0.1:8000'));
@@ -221,5 +224,43 @@ void main() {
       expect(donation.donorPrayer, contains('successful surgery'));
       expect(state.notifications.first, contains('Treatment Fund'));
     });
+
+    test('Persistent JWT Login, Auto-Session Restore and Logout Flow', () async {
+      final testDoctor = UserModel(
+        id: 'DOC-PERSIST-99',
+        name: 'Dr. Hariharan MD',
+        email: 'hariharan@carelink.kerala.gov.in',
+        phone: '+91 94470 55555',
+        role: UserRole.doctor,
+        organizationId: 'org_kozhikode',
+        district: 'Kozhikode',
+      );
+
+      // 1. Log in user with JWT token
+      await state.loginAsUser(testDoctor, token: 'jwt_mock_access_token_12345');
+      expect(state.isLoggedIn, isTrue);
+      expect(state.currentUser.id, 'DOC-PERSIST-99');
+      expect(state.currentUser.name, 'Dr. Hariharan MD');
+      expect(state.jwtToken, 'jwt_mock_access_token_12345');
+
+      // 2. Simulate new app launch & restore session
+      final newState = AppStateProvider();
+      await newState.restoreSavedSession();
+      expect(newState.isLoggedIn, isTrue);
+      expect(newState.currentUser.id, 'DOC-PERSIST-99');
+      expect(newState.currentUser.name, 'Dr. Hariharan MD');
+      expect(newState.jwtToken, 'jwt_mock_access_token_12345');
+
+      // 3. Explicit Logout clears the session
+      await newState.logout();
+      expect(newState.isLoggedIn, isFalse);
+      expect(newState.jwtToken, isNull);
+
+      // 4. Subsequent launch after logout remains logged out
+      final afterLogoutState = AppStateProvider();
+      await afterLogoutState.restoreSavedSession();
+      expect(afterLogoutState.isLoggedIn, isFalse);
+    });
   });
 }
+

@@ -4,13 +4,25 @@ import '../models/patient_model.dart';
 import '../models/clinical_models.dart';
 import '../services/mock_database_service.dart';
 import '../services/api_service.dart';
+import '../services/auth_session_service.dart';
 
 class AppStateProvider extends ChangeNotifier {
   // Locale & Theme State
   Locale _locale = const Locale('en');
   Locale get locale => _locale;
-  bool _isDarkMode = false;
+  bool _isDarkMode = true; // Emerald Glass Theme by default
   bool get isDarkMode => _isDarkMode;
+
+  // Authentication & Persistent JWT Session State
+  bool _isLoggedIn = false;
+  bool _isSessionLoaded = false;
+  String? _jwtToken;
+  String? _refreshToken;
+
+  bool get isLoggedIn => _isLoggedIn;
+  bool get isSessionLoaded => _isSessionLoaded;
+  String? get jwtToken => _jwtToken;
+  String? get refreshToken => _refreshToken;
 
   // Backend API URL State
   String _apiBaseUrl = 'http://127.0.0.1:8000/api';
@@ -41,6 +53,7 @@ class AppStateProvider extends ChangeNotifier {
     district: 'Kozhikode',
   );
   UserModel get currentUser => _currentUser;
+
 
   // Data Store Lists
   List<PatientModel> _patients = [];
@@ -88,9 +101,12 @@ class AppStateProvider extends ChangeNotifier {
 
   AppStateProvider() {
     _initMockData();
+    // Restore persistent JWT session if user previously logged in
+    restoreSavedSession();
     // Auto-connect to Django REST Backend on startup
     syncWithDjangoBackend();
   }
+
 
   void _initMockData() {
     _organizations = MockDatabaseService.getOrganizations();
@@ -113,6 +129,7 @@ class AppStateProvider extends ChangeNotifier {
     _campaigns = MockDatabaseService.getInitialCampaigns();
     _fundraisers = MockDatabaseService.getInitialMedicalFundraisers();
     _donations = MockDatabaseService.getInitialDonations();
+    _registeredUsers = MockDatabaseService.getDemoUsers();
     _notifications = [
       'Welcome to CareLink Kerala! System running online.',
       'Emergency Blood Request posted for Calicut Medical College Hospital (O+ Group).',
@@ -186,16 +203,226 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<UserModel> get demoUsers => MockDatabaseService.getDemoUsers();
+  List<UserModel> _registeredUsers = [];
+  List<UserModel> get registeredUsers => _registeredUsers;
+  List<UserModel> get demoUsers => _registeredUsers;
 
-  void loginAsUser(UserModel user) {
+  void registerStaffUser(UserModel newUser) {
+    _registeredUsers.insert(0, newUser);
+    _addNotification('Registered healthcare staff ${newUser.name} (${newUser.role.displayName}).');
+    notifyListeners();
+  }
+
+  /// Restore saved JWT session from persistent storage
+  Future<void> restoreSavedSession() async {
+    try {
+      final session = await AuthSessionService.getSession();
+      if (session != null && session.isLoggedIn && session.token.isNotEmpty) {
+        _currentUser = session.user;
+        _jwtToken = session.token;
+        _refreshToken = session.refreshToken;
+        ApiService.authToken = session.token;
+        _isLoggedIn = true;
+        _addNotification('Welcome back, ${_currentUser.name}! Session restored.');
+      } else {
+        _isLoggedIn = false;
+      }
+    } catch (e) {
+      debugPrint('restoreSavedSession error: $e');
+      _isLoggedIn = false;
+    } finally {
+      _isSessionLoaded = true;
+      notifyListeners();
+    }
+  }
+
+  /// Sign in user, assign JWT token, and persist session locally
+  Future<void> loginAsUser(UserModel user, {String? token, String? refreshToken}) async {
     _currentUser = user;
+    _jwtToken = token ?? ApiService.authToken ?? 'jwt_carelink_${user.id}_${DateTime.now().millisecondsSinceEpoch}';
+    _refreshToken = refreshToken;
+    ApiService.authToken = _jwtToken;
+    _isLoggedIn = true;
+
+    // Persist to local database
+    await AuthSessionService.saveSession(
+      token: _jwtToken!,
+      refreshToken: _refreshToken,
+      user: user,
+    );
+
     _addNotification('Signed in as ${user.name} (${user.role.displayName}).');
     notifyListeners();
   }
 
+  /// Explicitly sign out of session and clear persistent storage
+  Future<void> logout() async {
+    _isLoggedIn = false;
+    _jwtToken = null;
+    _refreshToken = null;
+    ApiService.authToken = null;
+
+    // Clear persistent session
+    await AuthSessionService.clearSession();
+
+    _addNotification('Signed out of session.');
+    notifyListeners();
+  }
+
+  /// Production credential authentication: checks backend JWT API, with fallback to local verified credentials
+  Future<bool> authenticate({
+    required String emailOrUsername,
+    required String password,
+  }) async {
+    final cleanInput = emailOrUsername.trim();
+    final cleanPassword = password.trim();
+
+    if (cleanInput.isEmpty || cleanPassword.isEmpty) {
+      return false;
+    }
+
+    // 1. Attempt online backend API authentication
+    try {
+      final apiResult = await ApiService.login(cleanInput, cleanPassword);
+      if (apiResult != null && apiResult['access'] != null) {
+        final token = apiResult['access'] as String;
+        final refreshToken = apiResult['refresh'] as String?;
+        final userData = apiResult['user'] as Map<String, dynamic>?;
+
+        UserModel authenticatedUser;
+        if (userData != null) {
+          final roleStr = (userData['role'] ?? 'NURSE').toString().toUpperCase();
+          UserRole role;
+          switch (roleStr) {
+            case 'SUPER_ADMIN':
+              role = UserRole.superAdmin;
+              break;
+            case 'ORG_ADMIN':
+              role = UserRole.orgAdmin;
+              break;
+            case 'DOCTOR':
+              role = UserRole.doctor;
+              break;
+            case 'NURSE':
+              role = UserRole.nurse;
+              break;
+            case 'VOLUNTEER':
+              role = UserRole.volunteer;
+              break;
+            case 'RECEPTION':
+              role = UserRole.reception;
+              break;
+            case 'PHARMACIST':
+              role = UserRole.pharmacist;
+              break;
+            case 'ACCOUNTANT':
+              role = UserRole.accountant;
+              break;
+            case 'AMBULANCE_DRIVER':
+              role = UserRole.ambulanceDriver;
+              break;
+            case 'PATIENT':
+              role = UserRole.patient;
+              break;
+            case 'FAMILY_MEMBER':
+              role = UserRole.familyMember;
+              break;
+            case 'BLOOD_DONOR':
+            case 'PALLIATIVE_MEMBER':
+              role = UserRole.palliativeMember;
+              break;
+            default:
+              role = UserRole.nurse;
+          }
+
+          final fullName = '${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}'.trim();
+          authenticatedUser = UserModel(
+            id: 'USR-${userData['id'] ?? 'PROD-01'}',
+            name: fullName.isNotEmpty ? fullName : (userData['username'] ?? cleanInput),
+            email: userData['email'] ?? cleanInput,
+            phone: userData['phone'] ?? '+91 94470 00001',
+            role: role,
+            organizationId: userData['organization']?.toString() ?? (_activeOrganization?.id ?? 'org_kozhikode'),
+            district: userData['district'] ?? (_activeOrganization?.district ?? 'Kozhikode'),
+          );
+        } else {
+          authenticatedUser = UserModel(
+            id: 'USR-AUTH-01',
+            name: cleanInput.contains('@') ? cleanInput.split('@').first : cleanInput,
+            email: cleanInput,
+            phone: '+91 94470 00001',
+            role: cleanInput.toLowerCase() == 'mrtuf2204@gmail.com' ? UserRole.superAdmin : UserRole.nurse,
+            organizationId: _activeOrganization?.id ?? 'org_kozhikode',
+            district: _activeOrganization?.district ?? 'Kozhikode',
+          );
+        }
+
+        await loginAsUser(authenticatedUser, token: token, refreshToken: refreshToken);
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Online auth attempt encountered exception: $e');
+    }
+
+    // 2. Offline / Local Credential Authentication Gate
+    final lowerInput = cleanInput.toLowerCase();
+
+    // Primary Super Admin check
+    if (lowerInput == 'mrtuf2204@gmail.com' && cleanPassword == 'Admin@12345') {
+      final superAdminUser = UserModel(
+        id: 'USR-SADM-01',
+        name: 'Super Admin',
+        email: 'mrtuf2204@gmail.com',
+        phone: '+91 94470 00001',
+        role: UserRole.superAdmin,
+        organizationId: _activeOrganization?.id ?? 'org_kozhikode',
+        district: _activeOrganization?.district ?? 'Kozhikode',
+      );
+      await loginAsUser(superAdminUser);
+      return true;
+    }
+
+    // Known Staff profiles check (e.g. Registered staff or default staff profiles)
+    final matchingUser = demoUsers.where(
+      (u) => u.email.toLowerCase() == lowerInput || u.id.toLowerCase() == lowerInput,
+    ).firstOrNull;
+
+    if (matchingUser != null && (cleanPassword == 'pass1234' || cleanPassword == 'Admin@12345' || cleanPassword == 'password123')) {
+      await loginAsUser(matchingUser);
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Authenticate patient / family member by phone and OTP
+  Future<bool> authenticatePatientByPhone({
+    required String phone,
+    required String otp,
+  }) async {
+    final cleanPhone = phone.trim();
+    final cleanOtp = otp.trim();
+    if (cleanPhone.isEmpty || cleanOtp.length != 6) {
+      return false;
+    }
+
+    final existingPatient = _patients.where((p) => p.phone.contains(cleanPhone.replaceAll(' ', ''))).firstOrNull;
+    final patientUser = UserModel(
+      id: existingPatient?.id ?? 'USR-PAT-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+      name: existingPatient?.name ?? 'Patient User',
+      email: '${cleanPhone.replaceAll(RegExp(r'\D'), '')}@carelink.kerala.gov.in',
+      phone: cleanPhone,
+      role: UserRole.patient,
+      organizationId: _activeOrganization?.id ?? 'org_kozhikode',
+      district: existingPatient?.district ?? (_activeOrganization?.district ?? 'Kozhikode'),
+    );
+
+    await loginAsUser(patientUser);
+    return true;
+  }
+
   // Role Switcher Action for Testing
-  void switchRole(UserRole newRole) {
+  Future<void> switchRole(UserRole newRole) async {
     final matchingUser = demoUsers.firstWhere(
       (u) => u.role == newRole,
       orElse: () => UserModel(
@@ -209,10 +436,9 @@ class AppStateProvider extends ChangeNotifier {
       ),
     );
 
-    _currentUser = matchingUser;
-    _addNotification('Switched active profile to ${matchingUser.name} (${newRole.displayName})');
-    notifyListeners();
+    await loginAsUser(matchingUser);
   }
+
 
   // Phase 2: Patient Actions
   void addPatient(PatientModel newPatient) {

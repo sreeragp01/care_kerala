@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/patient_model.dart';
 import '../../../core/state/app_state_provider.dart';
+import '../../../core/widgets/glass_card.dart';
+import '../../legal/widgets/legal_viewer.dart';
 
 
 class PatientRegistrationScreen extends StatefulWidget {
@@ -40,6 +42,7 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen> {
   bool _needsWaterBed = false;
   bool _needsOxygenConcentrator = false;
   bool _needsWheelchair = false;
+  bool _agreedToConsent = false;
 
   @override
   void initState() {
@@ -76,56 +79,56 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen> {
           ],
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.person_add_alt_1_rounded, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, size: 28),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Palliative Care Intake Form',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          Text(
-                            'Enroll patients into ${widget.state.activeOrganization?.name ?? "Kerala Palliative Network"} for scheduled home visits & doctor consultations.',
-                            style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                          ),
-                        ],
+      body: GlassScaffoldBackground(
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Banner
+                GlassCard(
+                  padding: const EdgeInsets.all(14),
+                  borderRadius: 16,
+                  blur: 12,
+                  customFillColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.12),
+                  customBorderColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.35),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_add_alt_1_rounded, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Palliative Care Intake Form',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Enroll patients into ${widget.state.activeOrganization?.name ?? "Kerala Palliative Network"} for scheduled home visits & doctor consultations.',
+                              style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-              // ==========================================
-              // SECTION 1: Personal & Demographic Details
-              // ==========================================
-              _buildSectionTitle('1. Patient Identity & Demographics', Icons.person_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
+                // ==========================================
+                // SECTION 1: Personal & Demographic Details
+                // ==========================================
+                _buildSectionTitle('1. Patient Identity & Demographics', Icons.person_rounded),
+                GlassCard(
+                  borderRadius: 16,
+                  blur: 10,
                   padding: const EdgeInsets.all(14),
                   child: Column(
                     children: [
+
                       TextFormField(
                         controller: _nameCtrl,
                         decoration: const InputDecoration(
@@ -243,84 +246,82 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen> {
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+
 
               // ==========================================
               // SECTION 2: Clinical Diagnosis & Palliative Tier
               // ==========================================
               _buildSectionTitle('2. Clinical Assessment & Palliative Tier', Icons.medical_services_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _diagnosisCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Primary Clinical Diagnosis *',
-                          prefixIcon: Icon(Icons.coronavirus_rounded, size: 20),
-                          hintText: 'e.g. Ca Lung Stage IV with Bone Metastasis / Stroke / ESRD',
-                          isDense: true,
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: _diagnosisCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Primary Clinical Diagnosis *',
+                        prefixIcon: Icon(Icons.coronavirus_rounded, size: 20),
+                        hintText: 'e.g. Ca Lung Stage IV with Bone Metastasis / Stroke / ESRD',
+                        isDense: true,
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Please enter clinical diagnosis' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _categoryTier,
+                            decoration: const InputDecoration(
+                              labelText: 'Palliative Tier *',
+                              isDense: true,
+                            ),
+                            items: [
+                              'Category A',
+                              'Category B',
+                              'Category C',
+                              'Category D',
+                            ].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)))).toList(),
+                            onChanged: (v) => setState(() => _categoryTier = v!),
+                          ),
                         ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Please enter clinical diagnosis' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _categoryTier,
-                              decoration: const InputDecoration(
-                                labelText: 'Palliative Tier *',
-                                isDense: true,
-                              ),
-                              items: [
-                                'Category A',
-                                'Category B',
-                                'Category C',
-                                'Category D',
-                              ].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)))).toList(),
-                              onChanged: (v) => setState(() => _categoryTier = v!),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _riskLevel,
+                            decoration: const InputDecoration(
+                              labelText: 'Risk Level *',
+                              isDense: true,
                             ),
+                            items: ['High Risk', 'Moderate', 'Low Risk'].map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 12)))).toList(),
+                            onChanged: (v) => setState(() => _riskLevel = v!),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _riskLevel,
-                              decoration: const InputDecoration(
-                                labelText: 'Risk Level *',
-                                isDense: true,
-                              ),
-                              items: ['High Risk', 'Moderate', 'Low Risk'].map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 12)))).toList(),
-                              onChanged: (v) => setState(() => _riskLevel = v!),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
 
-                      // ESAS Pain Scale Slider
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Baseline Pain Score (0-10):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          Text('$_painScale / 10', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _painScale > 6 ? AppColors.danger : AppColors.primaryGreen)),
-                        ],
-                      ),
-                      Slider(
-                        value: _painScale.toDouble(),
-                        min: 0,
-                        max: 10,
-                        divisions: 10,
-                        activeColor: _painScale > 6 ? AppColors.danger : AppColors.primaryGreen,
-                        label: '$_painScale',
-                        onChanged: (val) => setState(() => _painScale = val.round()),
-                      ),
-                    ],
-                  ),
+                    // ESAS Pain Scale Slider
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Baseline Pain Score (0-10):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text('$_painScale / 10', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _painScale > 6 ? AppColors.danger : AppColors.primaryGreen)),
+                      ],
+                    ),
+                    Slider(
+                      value: _painScale.toDouble(),
+                      min: 0,
+                      max: 10,
+                      divisions: 10,
+                      activeColor: _painScale > 6 ? AppColors.danger : AppColors.primaryGreen,
+                      label: '$_painScale',
+                      onChanged: (val) => setState(() => _painScale = val.round()),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -329,51 +330,49 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen> {
               // SECTION 3: Caregiver & Emergency Contacts
               // ==========================================
               _buildSectionTitle('3. Primary Caregiver & Emergency Contact', Icons.family_restroom_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _caregiverNameCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Primary Caregiver Name *',
-                          prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
-                          isDense: true,
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _caregiverNameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Primary Caregiver Name *',
+                        prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                        isDense: true,
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Enter caregiver name' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _caregiverRelationCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Relationship *',
+                              prefixIcon: Icon(Icons.diversity_1_rounded, size: 20),
+                              isDense: true,
+                            ),
+                          ),
                         ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Enter caregiver name' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _caregiverRelationCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Relationship *',
-                                prefixIcon: Icon(Icons.diversity_1_rounded, size: 20),
-                                isDense: true,
-                              ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _caregiverPhoneCtrl,
+                            keyboardType: TextInputType.phone,
+                            decoration: const InputDecoration(
+                              labelText: 'Caregiver Phone *',
+                              prefixIcon: Icon(Icons.phone_android_rounded, size: 20),
+                              isDense: true,
                             ),
+                            validator: (v) => v == null || v.trim().length < 8 ? 'Enter caregiver phone' : null,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _caregiverPhoneCtrl,
-                              keyboardType: TextInputType.phone,
-                              decoration: const InputDecoration(
-                                labelText: 'Caregiver Phone *',
-                                prefixIcon: Icon(Icons.phone_android_rounded, size: 20),
-                                isDense: true,
-                              ),
-                              validator: (v) => v == null || v.trim().length < 8 ? 'Enter caregiver phone' : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -382,75 +381,82 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen> {
               // SECTION 4: Clinical Team Assignment & Equipment
               // ==========================================
               _buildSectionTitle('4. Assigned Care Team & Equipment Assets', Icons.local_hospital_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      DropdownButtonFormField<String>(
-                        initialValue: _assignedDoctor,
-                        decoration: const InputDecoration(
-                          labelText: 'Assigned Palliative Doctor *',
-                          prefixIcon: Icon(Icons.health_and_safety_rounded, size: 20),
-                          isDense: true,
-                        ),
-                        items: ['Dr. Suresh Kumar MD', 'Dr. Radhika Menon MD', 'Dr. Anand Varma MBBS'].map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 12)))).toList(),
-                        onChanged: (v) => setState(() => _assignedDoctor = v!),
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _assignedDoctor,
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned Palliative Doctor *',
+                        prefixIcon: Icon(Icons.health_and_safety_rounded, size: 20),
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _assignedNurse,
-                        decoration: const InputDecoration(
-                          labelText: 'Assigned Community Nurse *',
-                          prefixIcon: Icon(Icons.medical_information_rounded, size: 20),
-                          isDense: true,
-                        ),
-                        items: ['Sister Anitha R. (Palliative Nurse)', 'Sister Priya M. (Home Care)', 'Sister Marykutty (Field Lead)'].map((n) => DropdownMenuItem(value: n, child: Text(n, style: const TextStyle(fontSize: 12)))).toList(),
-                        onChanged: (v) => setState(() => _assignedNurse = v!),
+                      items: ['Dr. Suresh Kumar MD', 'Dr. Radhika Menon MD', 'Dr. Anand Varma MBBS'].map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 12)))).toList(),
+                      onChanged: (v) => setState(() => _assignedDoctor = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _assignedNurse,
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned Community Nurse *',
+                        prefixIcon: Icon(Icons.medical_information_rounded, size: 20),
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _careGoalsCtrl,
-                        maxLines: 2,
-                        decoration: const InputDecoration(
-                          labelText: 'Initial Palliative Care Goals & Plan',
-                          prefixIcon: Icon(Icons.edit_note_rounded, size: 20),
-                          isDense: true,
-                        ),
+                      items: ['Sister Anitha R. (Palliative Nurse)', 'Sister Priya M. (Home Care)', 'Sister Marykutty (Field Lead)'].map((n) => DropdownMenuItem(value: n, child: Text(n, style: const TextStyle(fontSize: 12)))).toList(),
+                      onChanged: (v) => setState(() => _assignedNurse = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _careGoalsCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Initial Palliative Care Goals & Plan',
+                        prefixIcon: Icon(Icons.edit_note_rounded, size: 20),
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
+                    ),
+                    const SizedBox(height: 12),
 
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('Immediate Medical Equipment Loan Required:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Hospital Water / Ripple Air Bed (Pressure Sore Prevention)', style: TextStyle(fontSize: 12)),
-                        value: _needsWaterBed,
-                        onChanged: (val) => setState(() => _needsWaterBed = val ?? false),
-                      ),
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Oxygen Concentrator (5L / 10L Continuous)', style: TextStyle(fontSize: 12)),
-                        value: _needsOxygenConcentrator,
-                        onChanged: (val) => setState(() => _needsOxygenConcentrator = val ?? false),
-                      ),
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Mobility Wheelchair / Commode Chair', style: TextStyle(fontSize: 12)),
-                        value: _needsWheelchair,
-                        onChanged: (val) => setState(() => _needsWheelchair = val ?? false),
-                      ),
-                    ],
-                  ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Immediate Medical Equipment Loan Required:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Hospital Water / Ripple Air Bed (Pressure Sore Prevention)', style: TextStyle(fontSize: 12)),
+                      value: _needsWaterBed,
+                      onChanged: (val) => setState(() => _needsWaterBed = val ?? false),
+                    ),
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Oxygen Concentrator (5L / 10L Continuous)', style: TextStyle(fontSize: 12)),
+                      value: _needsOxygenConcentrator,
+                      onChanged: (val) => setState(() => _needsOxygenConcentrator = val ?? false),
+                    ),
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Mobility Wheelchair / Commode Chair', style: TextStyle(fontSize: 12)),
+                      value: _needsWheelchair,
+                      onChanged: (val) => setState(() => _needsWheelchair = val ?? false),
+                    ),
+                    const Divider(height: 16),
+                    LegalViewer.buildTermsCheckbox(
+                      context: context,
+                      value: _agreedToConsent,
+                      onChanged: (val) => setState(() => _agreedToConsent = val ?? false),
+                      prefixText: 'Consent: Patient/Family agrees to ',
+                      isDark: isDark,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
+
 
               // Submit Registration Button
               SizedBox(
@@ -471,10 +477,19 @@ class _PatientRegistrationScreenState extends State<PatientRegistrationScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
+
   void _submitPatientRegistration() {
+    if (!_agreedToConsent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please accept the patient consent and Nammal Tech Terms & Privacy Policy to register.')),
+      );
+      return;
+    }
+
     if (_formKey.currentState?.validate() ?? false) {
       final newId = 'PAT-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 

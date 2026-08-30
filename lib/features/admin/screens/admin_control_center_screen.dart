@@ -486,7 +486,7 @@ class _AdminControlCenterScreenState extends State<AdminControlCenterScreen> wit
   // TAB 4: Staff & User Role Management
   // ==========================================
   Widget _buildStaffRolesTab(BuildContext context, bool isDark) {
-    final staff = widget.state.demoUsers;
+    final staff = widget.state.registeredUsers;
 
     return Column(
       children: [

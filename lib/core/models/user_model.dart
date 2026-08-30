@@ -77,7 +77,33 @@ class UserModel {
     required this.organizationId,
     required this.district,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+    'phone': phone,
+    'role': role.name,
+    'organization_id': organizationId,
+    'district': district,
+  };
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id']?.toString() ?? 'USR-01',
+      name: json['name'] ?? '',
+      email: json['email'] ?? '',
+      phone: json['phone'] ?? '',
+      role: UserRole.values.firstWhere(
+        (r) => r.name == json['role'],
+        orElse: () => UserRole.nurse,
+      ),
+      organizationId: json['organization_id'] ?? 'org_kozhikode',
+      district: json['district'] ?? 'Kozhikode',
+    );
+  }
 }
+
 
 class OrganizationModel {
   final String id;

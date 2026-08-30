@@ -7,6 +7,9 @@ import '../../dashboard/screens/dashboard_screen.dart';
 import '../../emergency_sos/screens/emergency_sos_screen.dart';
 import '../../../core/widgets/kerala_location_selector.dart';
 import 'staff_registration_screen.dart';
+import '../../patients/screens/patient_registration_screen.dart';
+import '../../legal/widgets/legal_viewer.dart';
+import '../../../core/widgets/carelink_brand_logo.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -19,16 +22,124 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'anitha@carelink.kerala.gov.in');
-  final _passwordController = TextEditingController(text: 'pass1234');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _patientOtpController = TextEditingController();
+
+  bool _isStaffMode = true;
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
+  bool _patientOtpSent = false;
+  String? _patientGeneratedOtp;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    _patientOtpController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleStaffSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your registered email or username.');
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your password.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final success = await widget.state.authenticate(
+      emailOrUsername: email,
+      password: password,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(state: widget.state),
+        ),
+      );
+    } else {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Invalid email or password. Please check your credentials.';
+      });
+    }
+  }
+
+  Future<void> _handlePatientSendOtp() async {
+    final phone = _phoneController.text.trim();
+    if (phone.isEmpty || phone.length < 10) {
+      setState(() => _errorMessage = 'Please enter a valid 10-digit registered mobile number.');
+      return;
+    }
+
+    final otp = widget.state.requestPasswordResetOtp(phone);
+    setState(() {
+      _patientOtpSent = true;
+      _patientGeneratedOtp = otp;
+      _errorMessage = null;
+    });
+  }
+
+  Future<void> _handlePatientVerifyAndSignIn() async {
+    final phone = _phoneController.text.trim();
+    final otp = _patientOtpController.text.trim();
+
+    if (otp.length != 6) {
+      setState(() => _errorMessage = 'Please enter the valid 6-digit OTP code.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final success = await widget.state.authenticatePatientByPhone(
+      phone: phone,
+      otp: otp,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(state: widget.state),
+        ),
+      );
+    } else {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Invalid or expired OTP code. Please try again.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final isMalayalam = widget.state.locale.languageCode == 'ml';
+    final isDark = widget.state.isDarkMode;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -38,41 +149,35 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo Banner
+                  // Official Brand Logo Emblem & Wordmark
+                  CareLinkBrandLogo(
+                    size: 88,
+                    showWordmark: true,
+                    showTagline: true,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // "Better Days, Together ♡" Tagline Badge
                   Container(
-                    width: 80,
-                    height: 80,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.lightGreenSurface,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryGreen, width: 2),
+                      color: AppColors.brandTeal.withValues(alpha: isDark ? 0.18 : 0.10),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.brandTeal.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.health_and_safety_rounded,
-                      size: 48,
-                      color: AppColors.primaryGreen,
+                    child: Text(
+                      '“Better Days, Together ♡”',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic,
+                        color: isDark ? AppColors.brandHealthGreen : AppColors.brandNavy,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  Text(
-                    loc.translate('app_title'),
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryGreen,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 6),
-
-                  Text(
-                    loc.translate('tagline'),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
 
@@ -130,8 +235,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.lightSand,
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSand,
                       borderRadius: BorderRadius.circular(12),
+                      border: isDark ? Border.all(color: AppColors.darkCardBorder) : null,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -144,7 +250,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 4.0),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.business_rounded, color: AppColors.primaryGreen, size: 20),
+                                  Icon(
+                                    Icons.business_rounded,
+                                    color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
@@ -157,13 +267,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                         Text(
                                           'District: ${widget.state.activeOrganization?.district ?? "Kerala"} • Tap to switch',
-                                          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const Icon(Icons.arrow_drop_down_rounded, color: AppColors.primaryGreen),
+                                  Icon(
+                                    Icons.arrow_drop_down_rounded,
+                                    color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                                  ),
                                 ],
                               ),
                             ),
@@ -183,7 +299,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           child: Text(
                             isMalayalam ? 'English' : 'മലയാളം',
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                            ),
                           ),
                         ),
                       ],
@@ -198,39 +317,54 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          // Portal Mode Switcher Tabs
                           Row(
                             children: [
                               Expanded(
                                 child: InkWell(
                                   onTap: () {
-                                    if (widget.state.currentUser.role.isPatientOrFamily) {
-                                      widget.state.switchRole(UserRole.nurse);
-                                    }
+                                    setState(() {
+                                      _isStaffMode = true;
+                                      _errorMessage = null;
+                                    });
                                   },
                                   borderRadius: BorderRadius.circular(8),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
                                     decoration: BoxDecoration(
-                                      color: !widget.state.currentUser.role.isPatientOrFamily
-                                          ? AppColors.lightGreenSurface
+                                      color: _isStaffMode
+                                          ? (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: !widget.state.currentUser.role.isPatientOrFamily
-                                            ? AppColors.primaryGreen
+                                        color: _isStaffMode
+                                            ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
                                             : Colors.transparent,
                                       ),
                                     ),
                                     child: Center(
-                                      child: Text(
-                                        'Staff Portal',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: !widget.state.currentUser.role.isPatientOrFamily
-                                              ? AppColors.primaryGreen
-                                              : AppColors.textSecondary,
-                                        ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.admin_panel_settings_rounded,
+                                            size: 16,
+                                            color: _isStaffMode
+                                                ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
+                                                : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Staff & Admin',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: _isStaffMode
+                                                  ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
+                                                  : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -240,34 +374,48 @@ class _LoginScreenState extends State<LoginScreen> {
                               Expanded(
                                 child: InkWell(
                                   onTap: () {
-                                    if (!widget.state.currentUser.role.isPatientOrFamily) {
-                                      widget.state.switchRole(UserRole.patient);
-                                    }
+                                    setState(() {
+                                      _isStaffMode = false;
+                                      _errorMessage = null;
+                                    });
                                   },
                                   borderRadius: BorderRadius.circular(8),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
                                     decoration: BoxDecoration(
-                                      color: widget.state.currentUser.role.isPatientOrFamily
-                                          ? AppColors.lightGreenSurface
+                                      color: !_isStaffMode
+                                          ? (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: widget.state.currentUser.role.isPatientOrFamily
-                                            ? AppColors.primaryGreen
+                                        color: !_isStaffMode
+                                            ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
                                             : Colors.transparent,
                                       ),
                                     ),
                                     child: Center(
-                                      child: Text(
-                                        'Patient Portal',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: widget.state.currentUser.role.isPatientOrFamily
-                                              ? AppColors.primaryGreen
-                                              : AppColors.textSecondary,
-                                        ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.family_restroom_rounded,
+                                            size: 16,
+                                            color: !_isStaffMode
+                                                ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
+                                                : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Patient Portal',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: !_isStaffMode
+                                                ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
+                                                : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -275,31 +423,70 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 18),
 
-                          if (!widget.state.currentUser.role.isPatientOrFamily) ...[
-                            Text(
-                              'Staff Sign In (${widget.state.currentUser.role.displayName})',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          // Error Banner
+                          if (_errorMessage != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              margin: const EdgeInsets.only(bottom: 14),
+                              decoration: BoxDecoration(
+                                color: AppColors.danger.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 12),
+                          ],
+
+                          if (_isStaffMode) ...[
+                            const Text(
+                              'Sign In to Healthcare Staff & Administration',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Enter your authorized credentials or Super Admin account.',
+                              style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: 14),
+
                             TextField(
                               controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
                               decoration: const InputDecoration(
-                                labelText: 'Staff Email or User ID',
-                                prefixIcon: Icon(Icons.badge_outlined),
+                                labelText: 'Email or Username *',
+                                hintText: 'mrtuf2204@gmail.com',
+                                prefixIcon: Icon(Icons.person_outline_rounded),
                               ),
                             ),
                             const SizedBox(height: 12),
+
                             TextField(
                               controller: _passwordController,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: Icon(Icons.lock_outline),
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
+                                labelText: 'Password *',
+                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                suffixIcon: IconButton(
+                                  icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 4),
+
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
@@ -309,58 +496,36 @@ class _LoginScreenState extends State<LoginScreen> {
                                   minimumSize: Size.zero,
                                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'Forgot Password?',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryGreen,
+                                    color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
                                   ),
                                 ),
                               ),
                             ),
-                          ] else ...[
-                            const Text(
-                              'Patient & Caregiver Access',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Access your home care visits, doctor appointments, and emergency nurse support.',
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            const SizedBox(height: 16),
+
+                            ElevatedButton(
+                              onPressed: _isLoading ? null : _handleStaffSignIn,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Text(
+                                      'Sign In to Dashboard',
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    ),
                             ),
                             const SizedBox(height: 12),
-                            const TextField(
-                              decoration: InputDecoration(
-                                labelText: 'Registered Mobile Number (OTP)',
-                                hintText: '+91 98470 XXXXX',
-                                prefixIcon: Icon(Icons.phone_android_rounded),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 18),
 
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => DashboardScreen(state: widget.state),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: Text(
-                              widget.state.currentUser.role.isPatientOrFamily
-                                  ? 'Enter Patient Portal'
-                                  : 'Sign In to Staff Dashboard',
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          if (!widget.state.currentUser.role.isPatientOrFamily) ...[
                             OutlinedButton.icon(
                               onPressed: () {
                                 Navigator.push(
@@ -374,150 +539,186 @@ class _LoginScreenState extends State<LoginScreen> {
                               label: const Text('New Healthcare Staff? Register Here', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                             ),
                             const SizedBox(height: 8),
+
                             OutlinedButton.icon(
                               onPressed: () => _showRegisterOrgDialog(context),
                               icon: const Icon(Icons.add_business_rounded, size: 16),
                               label: Text(loc.translate('register_org'), style: const TextStyle(fontSize: 12)),
                             ),
-                          ],
+                          ] else ...[
+                            const Text(
+                              'Patient & Caregiver Access',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Access your home care visits, vitals records, and emergency nurse support.',
+                              style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: 14),
 
+                            TextField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              decoration: const InputDecoration(
+                                labelText: 'Registered Mobile Number *',
+                                hintText: '+91 98470 12345',
+                                prefixIcon: Icon(Icons.phone_android_rounded),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            if (_patientOtpSent) ...[
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.mark_email_read_rounded,
+                                      color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'OTP sent to ${_phoneController.text.trim()}:\nCode: $_patientGeneratedOtp',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                                        ),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        if (_patientGeneratedOtp != null) {
+                                          _patientOtpController.text = _patientGeneratedOtp!;
+                                        }
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        minimumSize: Size.zero,
+                                      ),
+                                      child: const Text('Auto-Fill', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              TextField(
+                                controller: _patientOtpController,
+                                keyboardType: TextInputType.number,
+                                maxLength: 6,
+                                decoration: const InputDecoration(
+                                  labelText: 'Enter 6-Digit OTP *',
+                                  prefixIcon: Icon(Icons.pin_outlined),
+                                  counterText: '',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              ElevatedButton(
+                                onPressed: _isLoading ? null : _handlePatientVerifyAndSignIn,
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Text('Verify & Enter Patient Portal', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: _handlePatientSendOtp,
+                                icon: const Icon(Icons.send_rounded, size: 16),
+                                label: const Text('Send Verification OTP', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => PatientRegistrationScreen(state: widget.state),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.person_add_rounded, size: 16),
+                              label: const Text('New Patient? Enroll for Home Care', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // Demo Users 1-Click Login Directory
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: widget.state.isDarkMode ? AppColors.darkSurface : AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: widget.state.isDarkMode ? AppColors.darkCardBorder : AppColors.cardBorder),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.accentGold.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.supervised_user_circle_rounded, size: 20, color: AppColors.accentGold),
-                            ),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '1-Click Demo Profiles by Role',
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    'Tap any role below to test its unique UI, permissions & workflows:',
-                                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                  // Nammal Tech Legal & Company Footer
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: () => LegalViewer.openTerms(context),
+                        child: Text(
+                          'Terms of Service',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                          ),
                         ),
-                        const SizedBox(height: 14),
-
-                        ...widget.state.demoUsers.map((demoUser) {
-                          final isSelected = widget.state.currentUser.role == demoUser.role;
-                          final iconData = _getRoleIcon(demoUser.role);
-                          final colorData = _getRoleColor(demoUser.role, widget.state.isDarkMode);
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? (widget.state.isDarkMode ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
-                                  : (widget.state.isDarkMode ? AppColors.darkBackground : AppColors.background),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isSelected
-                                    ? (widget.state.isDarkMode ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
-                                    : (widget.state.isDarkMode ? AppColors.darkCardBorder : AppColors.cardBorder),
-                                width: isSelected ? 1.5 : 1.0,
-                              ),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                              leading: CircleAvatar(
-                                radius: 18,
-                                backgroundColor: colorData.withValues(alpha: 0.2),
-                                child: Icon(iconData, color: colorData, size: 18),
-                              ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      demoUser.name,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: colorData.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      demoUser.role.displayName,
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colorData),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                _getRoleDescription(demoUser.role, isMalayalam),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: widget.state.isDarkMode ? AppColors.darkTextSecondary : AppColors.textSecondary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: ElevatedButton(
-                                onPressed: () {
-                                  widget.state.loginAsUser(demoUser);
-                                  Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(
-                                      builder: (_) => DashboardScreen(state: widget.state),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isSelected
-                                      ? (widget.state.isDarkMode ? AppColors.darkPrimaryGreen : AppColors.primaryGreen)
-                                      : (widget.state.isDarkMode ? AppColors.darkSurfaceLight : Colors.white),
-                                  foregroundColor: isSelected
-                                      ? Colors.white
-                                      : (widget.state.isDarkMode ? AppColors.darkTextLight : AppColors.primaryGreen),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  minimumSize: Size.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                    side: BorderSide(
-                                      color: widget.state.isDarkMode ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                                    ),
-                                  ),
-                                ),
-                                child: const Text('Sign In', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
+                      ),
+                      Text(' • ', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+                      InkWell(
+                        onTap: () => LegalViewer.openPrivacy(context),
+                        child: Text(
+                          'Privacy Policy',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                          ),
+                        ),
+                      ),
+                      Text(' • ', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+                      InkWell(
+                        onTap: () => LegalViewer.showCompanyInfo(context),
+                        child: Text(
+                          'Nammal Tech',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '© 2026 Nammal Tech. All Rights Reserved.',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -526,113 +727,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-  }
-
-  IconData _getRoleIcon(UserRole role) {
-    switch (role) {
-      case UserRole.patient:
-        return Icons.personal_injury_rounded;
-      case UserRole.familyMember:
-        return Icons.family_restroom_rounded;
-      case UserRole.nurse:
-        return Icons.medical_services_rounded;
-      case UserRole.doctor:
-        return Icons.health_and_safety_rounded;
-      case UserRole.volunteer:
-        return Icons.groups_rounded;
-      case UserRole.ambulanceDriver:
-        return Icons.airport_shuttle_rounded;
-      case UserRole.pharmacist:
-        return Icons.medication_rounded;
-      case UserRole.orgAdmin:
-        return Icons.admin_panel_settings_rounded;
-      case UserRole.superAdmin:
-        return Icons.shield_rounded;
-      case UserRole.palliativeMember:
-        return Icons.volunteer_activism_rounded;
-      default:
-        return Icons.person_rounded;
-    }
-  }
-
-  Color _getRoleColor(UserRole role, bool isDark) {
-    switch (role) {
-      case UserRole.patient:
-      case UserRole.familyMember:
-        return isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen;
-      case UserRole.nurse:
-        return AppColors.info;
-      case UserRole.doctor:
-        return Colors.teal;
-      case UserRole.volunteer:
-        return Colors.indigo;
-      case UserRole.ambulanceDriver:
-        return Colors.deepOrange;
-      case UserRole.pharmacist:
-        return AppColors.warning;
-      case UserRole.orgAdmin:
-        return AppColors.accentGold;
-      case UserRole.superAdmin:
-        return Colors.purple;
-      case UserRole.palliativeMember:
-        return Colors.teal;
-      default:
-        return AppColors.primaryGreen;
-    }
-  }
-
-  String _getRoleDescription(UserRole role, bool isMalayalam) {
-    if (isMalayalam) {
-      switch (role) {
-        case UserRole.patient:
-          return 'വ്യക്തിഗത ആരോഗ്യ വിവരങ്ങൾ, അടിയന്തര SOS, മലയാളം AI';
-        case UserRole.familyMember:
-          return 'കുടുംബാംഗങ്ങൾക്കായി ഹോം വിസിറ്റ് അഭ്യർത്ഥിക്കുക, ഉപകരണങ്ങൾ';
-        case UserRole.nurse:
-          return 'ഹോം വിസിറ്റ് റൂട്ട് ഷെഡ്യൂൾ, ജിപിഎസ് ചെക്ക്-ഇൻ, മെഡിക്കൽ കുറിപ്പുകൾ';
-        case UserRole.doctor:
-          return 'ടെലി-കൺസൾട്ടേഷൻ, AI കേസ് സംഗ്രഹം, അടിയന്തര മുന്നറിയിപ്പുകൾ';
-        case UserRole.volunteer:
-          return 'വാർഡ് രോഗികൾ, സേവന സമയം രേഖപ്പെടുത്തൽ, രക്തദാതാക്കൾ';
-        case UserRole.ambulanceDriver:
-          return '108 ആംബുലൻസ് ഡിസ്പാച്ച് നിലയും എമർജൻസി റൂട്ടിംഗും';
-        case UserRole.pharmacist:
-          return 'മരുന്ന് സ്റ്റോക്ക് വിവരങ്ങൾ, റീഓർഡർ അലേർട്ടുകൾ, ഡിപ്പോ';
-        case UserRole.orgAdmin:
-          return 'ജില്ലാ KPI അനലിറ്റിക്‌സ്, വളണ്ടിയർ വെരിഫിക്കേഷൻ, മൾട്ടി-ടെനന്റ്';
-        case UserRole.superAdmin:
-          return 'എല്ലാ 14 കേരള ജില്ലകളും, ബാക്കെൻഡ് കോൺഫിഗറേഷൻ, പൂർണ്ണ നിയന്ത്രണം';
-        case UserRole.palliativeMember:
-          return 'രോഗി റഫറൽ, കമ്മ്യൂണിറ്റി പരിചരണ സംരംഭങ്ങൾ, രക്തദാനം';
-        default:
-          return 'കെയർലിങ്ക് കേരളം കമ്മ്യൂണിറ്റി പ്രവേശനം';
-      }
-    }
-
-    switch (role) {
-      case UserRole.patient:
-        return 'Personal health vitals, emergency nurse SOS, Malayalam AI';
-      case UserRole.familyMember:
-        return 'Request home visits & track equipment loans for family';
-      case UserRole.nurse:
-        return 'Home visit route schedule, GPS check-in, clinical notes';
-      case UserRole.doctor:
-        return 'Tele-consultations, AI case summaries, critical alerts';
-      case UserRole.volunteer:
-        return 'Ward patients, log service hours, donor directory';
-      case UserRole.ambulanceDriver:
-        return '108 ambulance dispatch status & emergency routing';
-      case UserRole.pharmacist:
-        return 'Medicine stock inventory, reorder alerts, depot loans';
-      case UserRole.orgAdmin:
-        return 'District KPI analytics, volunteer verification, multi-tenant';
-      case UserRole.superAdmin:
-        return 'All Kerala districts, backend API config, full system control';
-      case UserRole.palliativeMember:
-        return 'Refer needy patients, community care causes, blood donor network';
-      default:
-        return 'CareLink Kerala community access';
-    }
   }
 
   void _showTenantSwitcherDialog(BuildContext context) {
@@ -716,6 +810,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showRegisterOrgDialog(BuildContext context) {
     String selectedDistrict = 'Thrissur';
+    bool agreedToTerms = false;
 
     final nameCtrl = TextEditingController(text: 'Thrissur Pain and Palliative Care Society');
     final regNumberCtrl = TextEditingController(text: 'TCR/NGO/2026/089');
@@ -725,6 +820,8 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+
           return AlertDialog(
             title: const Row(
               children: [
@@ -801,6 +898,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
                     ),
+                    const SizedBox(height: 12),
+
+                    LegalViewer.buildTermsCheckbox(
+                      context: context,
+                      value: agreedToTerms,
+                      onChanged: (val) => setDialogState(() => agreedToTerms = val ?? false),
+                      prefixText: 'Unit Auth: I accept ',
+                      isDark: isDark,
+                    ),
                   ],
                 ),
               ),
@@ -812,6 +918,13 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               ElevatedButton.icon(
                 onPressed: () {
+                  if (!agreedToTerms) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please accept the Terms of Service & Privacy Policy provided by Nammal Tech to register.')),
+                    );
+                    return;
+                  }
+
                   if (nameCtrl.text.isNotEmpty) {
                     final newOrg = OrganizationModel(
                       id: 'org_${selectedDistrict.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',

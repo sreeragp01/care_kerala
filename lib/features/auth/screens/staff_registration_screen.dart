@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/state/app_state_provider.dart';
+import '../../../core/widgets/glass_card.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
+import '../../legal/widgets/legal_viewer.dart';
 
 class StaffRegistrationScreen extends StatefulWidget {
   final AppStateProvider state;
@@ -28,6 +30,7 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
   String _selectedDistrict = 'Kozhikode';
   String _selectedOrgId = 'org_kozhikode';
   bool _agreedToEthics = true;
+  bool _agreedToTerms = false;
   bool _obscurePassword = true;
 
   @override
@@ -63,99 +66,97 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
           ],
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primaryGreen,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.badge_rounded, color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Clinical & Field Staff Portal',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          Text(
-                            'Register as a verified Doctor, Nurse, Volunteer Coordinator, Pharmacist, or Driver in Kerala Palliative Network.',
-                            style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // ==========================================
-              // SECTION 1: Role Selection
-              // ==========================================
-              _buildSectionHeader('1. Professional Role & Designation', Icons.work_outline_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
+      body: GlassScaffoldBackground(
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Card
+                GlassCard(
                   padding: const EdgeInsets.all(14),
-                  child: Column(
+                  borderRadius: 16,
+                  blur: 12,
+                  customFillColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.12),
+                  customBorderColor: (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen).withValues(alpha: 0.35),
+                  child: Row(
                     children: [
-                      DropdownButtonFormField<UserRole>(
-                        initialValue: _selectedRole,
-                        decoration: const InputDecoration(
-                          labelText: 'Select Professional Role *',
-                          prefixIcon: Icon(Icons.psychology_alt_rounded, size: 20),
-                          isDense: true,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryGreen,
+                          shape: BoxShape.circle,
                         ),
-                        items: const [
-                          DropdownMenuItem(value: UserRole.doctor, child: Text('Doctor / Palliative Physician', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                          DropdownMenuItem(value: UserRole.nurse, child: Text('Staff Nurse / Home Care Specialist', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                          DropdownMenuItem(value: UserRole.volunteer, child: Text('Community Volunteer / Coordinator', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                          DropdownMenuItem(value: UserRole.pharmacist, child: Text('Pharmacist / Dispensary Officer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                          DropdownMenuItem(value: UserRole.ambulanceDriver, child: Text('Ambulance / Emergency Driver', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                          DropdownMenuItem(value: UserRole.orgAdmin, child: Text('Organization Administrator', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedRole = val;
-                              if (val == UserRole.doctor) {
-                                _qualificationCtrl.text = 'MD Palliative Medicine';
-                              } else if (val == UserRole.nurse) {
-                                _qualificationCtrl.text = 'B.Sc Nursing (Palliative Certified)';
-                              } else if (val == UserRole.pharmacist) {
-                                _qualificationCtrl.text = 'B.Pharm / D.Pharm';
-                              } else if (val == UserRole.ambulanceDriver) {
-                                _qualificationCtrl.text = 'Commercial & Emergency Driver License';
-                              } else {
-                                _qualificationCtrl.text = 'Graduate / Social Worker';
-                              }
-                            });
-                          }
-                        },
+                        child: const Icon(Icons.badge_rounded, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Clinical & Field Staff Portal',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Register as a verified Doctor, Nurse, Volunteer Coordinator, Pharmacist, or Driver in Kerala Palliative Network.',
+                              style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
+                ),
+
+              const SizedBox(height: 18),
+
+              // ==========================================
+              // SECTION 1: Professional Role
+              // ==========================================
+              _buildSectionHeader('1. Select Your Healthcare / Field Role', Icons.badge_outlined),
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<UserRole>(
+                      initialValue: _selectedRole,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Professional Role *',
+                        prefixIcon: Icon(Icons.psychology_alt_rounded, size: 20),
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: UserRole.doctor, child: Text('Doctor / Palliative Physician', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                        DropdownMenuItem(value: UserRole.nurse, child: Text('Staff Nurse / Home Care Specialist', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                        DropdownMenuItem(value: UserRole.volunteer, child: Text('Community Volunteer / Coordinator', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                        DropdownMenuItem(value: UserRole.pharmacist, child: Text('Pharmacist / Dispensary Officer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                        DropdownMenuItem(value: UserRole.ambulanceDriver, child: Text('Ambulance / Emergency Driver', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                        DropdownMenuItem(value: UserRole.orgAdmin, child: Text('Organization Administrator', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _selectedRole = val;
+                            if (val == UserRole.doctor) {
+                              _qualificationCtrl.text = 'MD Palliative Medicine';
+                            } else if (val == UserRole.nurse) {
+                              _qualificationCtrl.text = 'B.Sc Nursing (Palliative Certified)';
+                            } else if (val == UserRole.pharmacist) {
+                              _qualificationCtrl.text = 'B.Pharm / D.Pharm';
+                            } else if (val == UserRole.ambulanceDriver) {
+                              _qualificationCtrl.text = 'Commercial & Emergency Driver License';
+                            } else {
+                              _qualificationCtrl.text = 'Graduate / Social Worker';
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -164,47 +165,45 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
               // SECTION 2: Identity & Contact Details
               // ==========================================
               _buildSectionHeader('2. Personal & Contact Information', Icons.person_outline_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _nameCtrl,
-                        decoration: InputDecoration(
-                          labelText: _getRoleNameLabel(),
-                          prefixIcon: const Icon(Icons.person_rounded, size: 20),
-                          hintText: _getRoleNameHint(),
-                          isDense: true,
-                        ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Please enter your full name' : null,
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: _getRoleNameLabel(),
+                        prefixIcon: const Icon(Icons.person_rounded, size: 20),
+                        hintText: _getRoleNameHint(),
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _emailCtrl,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Official / Professional Email *',
-                          prefixIcon: Icon(Icons.email_outlined, size: 20),
-                          hintText: 'e.g. name@carelink.kerala.gov.in',
-                          isDense: true,
-                        ),
-                        validator: (v) => v == null || !v.contains('@') ? 'Enter a valid email address' : null,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Please enter your full name' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Official / Professional Email *',
+                        prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        hintText: 'e.g. name@carelink.kerala.gov.in',
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _phoneCtrl,
-                        keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(
-                          labelText: 'Primary Mobile Phone (with WhatsApp) *',
-                          prefixIcon: Icon(Icons.phone_android_rounded, size: 20),
-                          isDense: true,
-                        ),
-                        validator: (v) => v == null || v.trim().length < 8 ? 'Enter valid phone number' : null,
+                      validator: (v) => v == null || !v.contains('@') ? 'Enter a valid email address' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Primary Mobile Phone (with WhatsApp) *',
+                        prefixIcon: Icon(Icons.phone_android_rounded, size: 20),
+                        isDense: true,
                       ),
-                    ],
-                  ),
+                      validator: (v) => v == null || v.trim().length < 8 ? 'Enter valid phone number' : null,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -213,39 +212,37 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
               // SECTION 3: Council Credentials & Qualifications
               // ==========================================
               _buildSectionHeader('3. Council Credentials & Qualifications', Icons.verified_user_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _councilRegCtrl,
-                        decoration: InputDecoration(
-                          labelText: _getCouncilLabel(),
-                          prefixIcon: const Icon(Icons.document_scanner_rounded, size: 20),
-                          hintText: _getCouncilHint(),
-                          isDense: true,
-                        ),
-                        validator: (v) {
-                          if (_selectedRole == UserRole.doctor || _selectedRole == UserRole.nurse) {
-                            if (v == null || v.trim().isEmpty) return 'Council registration is mandatory';
-                          }
-                          return null;
-                        },
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _councilRegCtrl,
+                      decoration: InputDecoration(
+                        labelText: _getCouncilLabel(),
+                        prefixIcon: const Icon(Icons.document_scanner_rounded, size: 20),
+                        hintText: _getCouncilHint(),
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _qualificationCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Highest Medical / Academic Qualification *',
-                          prefixIcon: Icon(Icons.school_rounded, size: 20),
-                          isDense: true,
-                        ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Enter qualification' : null,
+                      validator: (v) {
+                        if (_selectedRole == UserRole.doctor || _selectedRole == UserRole.nurse) {
+                          if (v == null || v.trim().isEmpty) return 'Council registration is mandatory';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _qualificationCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Highest Medical / Academic Qualification *',
+                        prefixIcon: Icon(Icons.school_rounded, size: 20),
+                        isDense: true,
                       ),
-                    ],
-                  ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Enter qualification' : null,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -254,39 +251,37 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
               // SECTION 4: Organization & Jurisdiction
               // ==========================================
               _buildSectionHeader('4. Palliative Organization & District', Icons.domain_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedDistrict,
-                        decoration: const InputDecoration(
-                          labelText: 'Operational District *',
-                          prefixIcon: Icon(Icons.location_on_rounded, size: 20),
-                          isDense: true,
-                        ),
-                        items: [
-                          'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod',
-                          'Kollam', 'Kottayam', 'Kozhikode', 'Malappuram', 'Palakkad',
-                          'Pathanamthitta', 'Thiruvananthapuram', 'Thrissur', 'Wayanad'
-                        ].map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 13)))).toList(),
-                        onChanged: (v) => setState(() => _selectedDistrict = v!),
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedDistrict,
+                      decoration: const InputDecoration(
+                        labelText: 'Operational District *',
+                        prefixIcon: Icon(Icons.location_on_rounded, size: 20),
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedOrgId,
-                        decoration: const InputDecoration(
-                          labelText: 'Assigned Palliative Care Unit *',
-                          prefixIcon: Icon(Icons.local_hospital_rounded, size: 20),
-                          isDense: true,
-                        ),
-                        items: widget.state.organizations.map((o) => DropdownMenuItem(value: o.id, child: Text(o.name, style: const TextStyle(fontSize: 12)))).toList(),
-                        onChanged: (v) => setState(() => _selectedOrgId = v!),
+                      items: [
+                        'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod',
+                        'Kollam', 'Kottayam', 'Kozhikode', 'Malappuram', 'Palakkad',
+                        'Pathanamthitta', 'Thiruvananthapuram', 'Thrissur', 'Wayanad'
+                      ].map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 13)))).toList(),
+                      onChanged: (v) => setState(() => _selectedDistrict = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedOrgId,
+                      decoration: const InputDecoration(
+                        labelText: 'Assigned Palliative Care Unit *',
+                        prefixIcon: Icon(Icons.local_hospital_rounded, size: 20),
+                        isDense: true,
                       ),
-                    ],
-                  ),
+                      items: widget.state.organizations.map((o) => DropdownMenuItem(value: o.id, child: Text(o.name, style: const TextStyle(fontSize: 12)))).toList(),
+                      onChanged: (v) => setState(() => _selectedOrgId = v!),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -295,55 +290,60 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
               // SECTION 5: Account Password & Ethics Agreement
               // ==========================================
               _buildSectionHeader('5. Account Security & Compassion Oath', Icons.security_rounded),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _passwordCtrl,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Create Account Password *',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 18),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                          isDense: true,
+              GlassCard(
+                borderRadius: 14,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _passwordCtrl,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Create Account Password *',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 18),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
-                        validator: (v) => v == null || v.trim().length < 6 ? 'Password must be at least 6 characters' : null,
+                        isDense: true,
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _confirmPasswordCtrl,
-                        obscureText: _obscurePassword,
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm Password *',
-                          prefixIcon: Icon(Icons.lock_clock_outlined, size: 20),
-                          isDense: true,
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim() != _passwordCtrl.text.trim()) {
-                            return 'Passwords do not match';
-                          }
-                          return null;
-                        },
+                      validator: (v) => v == null || v.trim().length < 6 ? 'Password must be at least 6 characters' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _confirmPasswordCtrl,
+                      obscureText: _obscurePassword,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm Password *',
+                        prefixIcon: Icon(Icons.lock_clock_outlined, size: 20),
+                        isDense: true,
                       ),
-                      const SizedBox(height: 10),
-                      CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'I solemnly agree to abide by the Kerala Palliative Care Code of Ethics, patient confidentiality, and compassionate care guidelines.',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                        value: _agreedToEthics,
-                        onChanged: (val) => setState(() => _agreedToEthics = val ?? false),
+                      validator: (v) {
+                        if (v == null || v.trim() != _passwordCtrl.text.trim()) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'I solemnly agree to abide by the Kerala Palliative Care Code of Ethics, patient confidentiality, and compassionate care guidelines.',
+                        style: TextStyle(fontSize: 11),
                       ),
-                    ],
-                  ),
+                      value: _agreedToEthics,
+                      onChanged: (val) => setState(() => _agreedToEthics = val ?? false),
+                    ),
+                    const SizedBox(height: 4),
+                    LegalViewer.buildTermsCheckbox(
+                      context: context,
+                      value: _agreedToTerms,
+                      onChanged: (val) => setState(() => _agreedToTerms = val ?? false),
+                      isDark: isDark,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
@@ -367,13 +367,22 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
           ),
         ),
       ),
+      ),
     );
   }
+
 
   void _submitStaffRegistration() {
     if (!_agreedToEthics) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please accept the Code of Ethics agreement to proceed.')),
+      );
+      return;
+    }
+
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please accept the Terms of Service and Privacy Policy provided by Nammal Tech.')),
       );
       return;
     }
@@ -391,8 +400,8 @@ class _StaffRegistrationScreenState extends State<StaffRegistrationScreen> {
         district: _selectedDistrict,
       );
 
-      // Register into demo users list and log in as newly registered user
-      widget.state.demoUsers.insert(0, newUser);
+      // Register into users list and log in as newly registered user
+      widget.state.registerStaffUser(newUser);
       widget.state.loginAsUser(newUser);
 
       ScaffoldMessenger.of(context).showSnackBar(

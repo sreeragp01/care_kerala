@@ -476,8 +476,8 @@ class MockDatabaseService {
       ),
       UserModel(
         id: 'USR-SADM-01',
-        name: 'State Health Director',
-        email: 'superadmin@carelink.kerala.gov.in',
+        name: 'Super Admin',
+        email: 'mrtuf2204@gmail.com',
         phone: '+91 94470 00001',
         role: UserRole.superAdmin,
         organizationId: 'org_kozhikode',

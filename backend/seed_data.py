@@ -52,9 +52,26 @@ def seed():
     )
 
 
-    # 2. Users
-    if not User.objects.filter(username='admin').exists():
-        User.objects.create_superuser('admin', 'admin@carelink.kerala.gov.in', 'admin123', role=UserRole.SUPER_ADMIN, organization=org1, district='Kozhikode')
+    # 2. Users - Super Admin Account
+    super_admin, created = User.objects.get_or_create(
+        username='mrtuf2204@gmail.com',
+        defaults={
+            'email': 'mrtuf2204@gmail.com',
+            'first_name': 'Super',
+            'last_name': 'Admin',
+            'role': UserRole.SUPER_ADMIN,
+            'is_staff': True,
+            'is_superuser': True,
+            'organization': org1,
+            'district': 'Kozhikode',
+            'phone': '+91 94470 00001',
+        }
+    )
+    super_admin.set_password('Admin@12345')
+    super_admin.is_staff = True
+    super_admin.is_superuser = True
+    super_admin.role = UserRole.SUPER_ADMIN
+    super_admin.save()
 
     nurse, _ = User.objects.get_or_create(
         username='anitha',

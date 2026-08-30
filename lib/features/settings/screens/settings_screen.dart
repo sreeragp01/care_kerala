@@ -5,6 +5,7 @@ import '../../../core/models/user_model.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../../core/widgets/payment_gateway_dialog.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../legal/widgets/legal_viewer.dart';
 
 
 class SettingsScreen extends StatelessWidget {
@@ -454,6 +455,39 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
+              // SECTION: Legal, Privacy & Compliance
+              _buildSectionHeader('Legal & Compliance', Icons.gavel_rounded),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.description_outlined, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
+                      title: const Text('Terms of Service', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      subtitle: const Text('Platform usage terms, medical disclaimer & governing law', style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                      onTap: () => LegalViewer.openTerms(context),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Icon(Icons.privacy_tip_outlined, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
+                      title: const Text('Privacy Policy', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      subtitle: const Text('EHR protection, DPDP Act & patient confidentiality', style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                      onTap: () => LegalViewer.openPrivacy(context),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Icon(Icons.corporate_fare_rounded, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
+                      title: const Text('Company & Intellectual Property', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      subtitle: const Text('Nammal Tech Innovations • All rights reserved', style: TextStyle(fontSize: 11)),
+                      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                      onTap: () => LegalViewer.showCompanyInfo(context),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
               // SECTION: About & App Info
               _buildSectionHeader('About Platform', Icons.info_outline_rounded),
               Card(
@@ -466,13 +500,39 @@ class SettingsScreen extends StatelessWidget {
                         children: [
                           Icon(Icons.health_and_safety_rounded, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, size: 24),
                           const SizedBox(width: 10),
-                          const Text('CareLink Kerala v1.0.0', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('CareLink Kerala v1.0.0', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text('Product of Nammal Tech', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.accentGold)),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
-                        'AI-Powered Palliative & Community Healthcare Platform. Engineered for Kerala Kudumbashree, ASHA, and Palliative Nursing Networks.',
-                        style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, height: 1.3),
+                        'AI-Powered Palliative & Community Healthcare Platform. Engineered by Nammal Tech for Kerala Kudumbashree, ASHA, and Palliative Nursing Networks.',
+                        style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, height: 1.35),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkSurfaceLight : AppColors.lightSand,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '© 2026 Nammal Tech. All Rights Reserved.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ],
                   ),
@@ -482,12 +542,15 @@ class SettingsScreen extends StatelessWidget {
 
               // Sign Out Button
               OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => LoginScreen(state: state)),
-                    (route) => false,
-                  );
+                onPressed: () async {
+                  await state.logout();
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => LoginScreen(state: state)),
+                      (route) => false,
+                    );
+                  }
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.danger,
@@ -497,6 +560,7 @@ class SettingsScreen extends StatelessWidget {
                 icon: const Icon(Icons.logout_rounded, color: AppColors.danger, size: 20),
                 label: const Text('Sign Out of Session', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
               ),
+
               const SizedBox(height: 24),
             ],
           ),

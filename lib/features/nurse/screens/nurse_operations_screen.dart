@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/clinical_models.dart';
 import '../../../core/models/patient_model.dart';
 import '../../../core/state/app_state_provider.dart';
+import '../../../core/widgets/glass_card.dart';
 
 class NurseOperationsScreen extends StatefulWidget {
   final AppStateProvider state;
@@ -58,13 +59,15 @@ class _NurseOperationsScreenState extends State<NurseOperationsScreen> with Sing
               ],
             ),
           ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildVisitQueueTab(context, isDark),
-              _buildBedsideCareTab(context, isDark),
-              _buildDispenseMedicineTab(context, isDark),
-            ],
+          body: GlassScaffoldBackground(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildVisitQueueTab(context, isDark),
+                _buildBedsideCareTab(context, isDark),
+                _buildDispenseMedicineTab(context, isDark),
+              ],
+            ),
           ),
         );
       },
@@ -84,91 +87,96 @@ class _NurseOperationsScreenState extends State<NurseOperationsScreen> with Sing
         final v = visits[i];
         final isCompleted = v.status == 'Completed';
 
-        return Card(
+        return GlassCard(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isCompleted
-                            ? (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
-                            : (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Status: ${v.status}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: isCompleted ? AppColors.primaryGreen : AppColors.warning,
-                        ),
+          borderRadius: 16,
+          blur: 12,
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isCompleted
+                          ? (isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface)
+                          : (isDark ? AppColors.darkWarningSurface : AppColors.warningSurface),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: (isCompleted ? AppColors.primaryGreen : AppColors.warning).withValues(alpha: 0.3),
+                        width: 1,
                       ),
                     ),
-                    Text(
-                      '${v.scheduledDate} • ${v.scheduledTime}',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    child: Text(
+                      'Status: ${v.status}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isCompleted ? (isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen) : AppColors.warning,
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(v.patientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('Address: ${v.patientAddress}', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
-                const SizedBox(height: 2),
-                Text('Assigned Nurse: ${v.assignedNurseName}', style: const TextStyle(fontSize: 11, color: AppColors.primaryGreen, fontWeight: FontWeight.w600)),
-                if (v.clinicalNotes != null && v.clinicalNotes!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text('Visit Notes: ${v.clinicalNotes}', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+                  ),
+                  Text(
+                    '${v.scheduledDate} • ${v.scheduledTime}',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ],
-                const Divider(height: 18),
-                Row(
-                  children: [
-                    if (!isCompleted) ...[
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            widget.state.acceptNurseVisit(v.id, nurseName: widget.state.currentUser.name);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Accepted home visit for ${v.patientName}!')),
-                            );
-                          },
-                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                          label: const Text('Accept Visit', style: TextStyle(fontSize: 11)),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showLogVitalsDialog(context, v.patientId, v.patientName),
-                          icon: const Icon(Icons.medical_information_rounded, size: 16),
-                          label: const Text('Log Vitals & Care', style: TextStyle(fontSize: 11)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      const Expanded(
-                        child: Text('Visit Completed & Synced with Clinical Record', style: TextStyle(fontSize: 11, color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ],
-                ),
+              ),
+              const SizedBox(height: 8),
+              Text(v.patientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text('Address: ${v.patientAddress}', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+              const SizedBox(height: 2),
+              Text('Assigned Nurse: ${v.assignedNurseName}', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, fontWeight: FontWeight.w600)),
+              if (v.clinicalNotes != null && v.clinicalNotes!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text('Visit Notes: ${v.clinicalNotes}', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
               ],
-            ),
+              Divider(height: 18, color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
+              Row(
+                children: [
+                  if (!isCompleted) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          widget.state.acceptNurseVisit(v.id, nurseName: widget.state.currentUser.name);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Accepted home visit for ${v.patientName}!')),
+                          );
+                        },
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
+                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Accept Visit', style: TextStyle(fontSize: 11))),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showLogVitalsDialog(context, v.patientId, v.patientName),
+                        icon: const Icon(Icons.medical_information_rounded, size: 15),
+                        label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Log Vitals & Care', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    Expanded(
+                      child: Text('Visit Completed & Synced with Clinical Record', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+
+                ],
+              ),
+            ],
           ),
         );
       },
     );
   }
+
 
   // ==========================================
   // TAB 2: Bedside Vitals & Nursing Procedures

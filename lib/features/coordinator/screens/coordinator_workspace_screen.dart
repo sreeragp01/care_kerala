@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/clinical_models.dart';
 import '../../../core/models/patient_model.dart';
 import '../../../core/state/app_state_provider.dart';
+import '../../../core/widgets/glass_card.dart';
 
 class CoordinatorWorkspaceScreen extends StatefulWidget {
   final AppStateProvider state;
@@ -58,13 +59,15 @@ class _CoordinatorWorkspaceScreenState extends State<CoordinatorWorkspaceScreen>
               ],
             ),
           ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildReferralsTab(context, isDark),
-              _buildAppealsTab(context, isDark),
-              _buildReliefAidTab(context, isDark),
-            ],
+          body: GlassScaffoldBackground(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildReferralsTab(context, isDark),
+                _buildAppealsTab(context, isDark),
+                _buildReliefAidTab(context, isDark),
+              ],
+            ),
           ),
         );
       },
@@ -84,95 +87,100 @@ class _CoordinatorWorkspaceScreenState extends State<CoordinatorWorkspaceScreen>
         final p = patients[i];
         final isEnrolled = p.lifecycleStatus == 'Active Care';
 
-        return Card(
+        return GlassCard(
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        p.categoryTier,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
-                      ),
-                    ),
-                  ],
-                ),
-                Text('Diagnosis: ${p.diagnosis} • Ward: ${p.ward}, ${p.district}', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
-                Text('Contact: ${p.phone} • Caregiver: ${p.emergencyContactName}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                if (p.referredBy != null)
-                  Text('Referred By: ${p.referredBy} (${p.referralUrgency ?? "Normal Priority"})', style: const TextStyle(fontSize: 10, color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
-                const Divider(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showAssignVolunteerDialog(context, p),
-                        icon: const Icon(Icons.badge_outlined, size: 15),
-                        label: const Text('Assign Volunteer', style: TextStyle(fontSize: 11)),
+          borderRadius: 16,
+          blur: 12,
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkLightGreenSurface : AppColors.lightGreenSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                        width: 1,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          final updated = PatientModel(
-                            id: p.id,
-                            name: p.name,
-                            age: p.age,
-                            gender: p.gender,
-                            bloodGroup: p.bloodGroup,
-                            district: p.district,
-                            ward: p.ward,
-                            address: p.address,
-                            phone: p.phone,
-                            lifecycleStatus: 'Active Care',
-                            categoryTier: p.categoryTier,
-                            diagnosis: p.diagnosis,
-                            riskLevel: p.riskLevel,
-                            aiSummary: p.aiSummary,
-                            emergencyContactName: p.emergencyContactName,
-                            emergencyContactPhone: p.emergencyContactPhone,
-                            carePlan: p.carePlan,
-                            vitalsHistory: p.vitalsHistory,
-                            equipmentIssued: p.equipmentIssued,
-                            familyMembers: p.familyMembers,
-                            medicalHistory: p.medicalHistory,
-                            registeredDate: p.registeredDate,
-                          );
-                          widget.state.updatePatient(updated);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Verified and enrolled ${p.name} into active community palliative rounds!')),
-                          );
-                        },
-                        icon: const Icon(Icons.check_circle_rounded, size: 15),
-                        label: Text(isEnrolled ? 'Enrolled' : 'Verify & Enroll', style: const TextStyle(fontSize: 11)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
-                          foregroundColor: Colors.white,
-                        ),
+                    child: Text(
+                      p.categoryTier,
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen),
+                    ),
+                  ),
+                ],
+              ),
+              Text('Diagnosis: ${p.diagnosis} • Ward: ${p.ward}, ${p.district}', style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
+              Text('Contact: ${p.phone} • Caregiver: ${p.emergencyContactName}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              if (p.referredBy != null)
+                Text('Referred By: ${p.referredBy} (${p.referralUrgency ?? "Normal Priority"})', style: TextStyle(fontSize: 10, color: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+              Divider(height: 16, color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showAssignVolunteerDialog(context, p),
+                      icon: const Icon(Icons.badge_outlined, size: 15),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Assign Volunteer', style: TextStyle(fontSize: 11))),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        final updated = PatientModel(
+                          id: p.id,
+                          name: p.name,
+                          age: p.age,
+                          gender: p.gender,
+                          bloodGroup: p.bloodGroup,
+                          district: p.district,
+                          ward: p.ward,
+                          address: p.address,
+                          phone: p.phone,
+                          lifecycleStatus: 'Active Care',
+                          categoryTier: p.categoryTier,
+                          diagnosis: p.diagnosis,
+                          riskLevel: p.riskLevel,
+                          aiSummary: p.aiSummary,
+                          emergencyContactName: p.emergencyContactName,
+                          emergencyContactPhone: p.emergencyContactPhone,
+                          carePlan: p.carePlan,
+                          vitalsHistory: p.vitalsHistory,
+                          equipmentIssued: p.equipmentIssued,
+                          familyMembers: p.familyMembers,
+                          medicalHistory: p.medicalHistory,
+                          registeredDate: p.registeredDate,
+                        );
+                        widget.state.updatePatient(updated);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Verified and enrolled ${p.name} into active community palliative rounds!')),
+                        );
+                      },
+                      icon: const Icon(Icons.check_circle_rounded, size: 15),
+                      label: FittedBox(fit: BoxFit.scaleDown, child: Text(isEnrolled ? 'Enrolled' : 'Verify & Enroll', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? AppColors.darkPrimaryGreen : AppColors.primaryGreen,
+                        foregroundColor: Colors.white,
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+
+            ],
           ),
         );
       },
     );
   }
+
 
   // ==========================================
   // TAB 2: Fundraiser Verification & Moderation

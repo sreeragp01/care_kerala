@@ -36,6 +36,7 @@ class SecurityHeadersMiddleware:
         response['X-Frame-Options'] = 'DENY'
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response['X-Powered-By'] = 'Nammal Tech'
         return response
 
 

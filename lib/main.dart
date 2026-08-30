@@ -3,11 +3,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/localization/app_localizations.dart';
 import 'core/state/app_state_provider.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/screens/login_screen.dart';
+import 'features/splash/screens/splash_screen.dart';
 
 import 'package:flutter/foundation.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Phase 9: Global Flutter UI Error Handling
@@ -25,9 +25,10 @@ void main() {
   };
 
   final appState = AppStateProvider();
+  await appState.restoreSavedSession();
+
   runApp(CareLinkKeralaApp(state: appState));
 }
-
 
 class CareLinkKeralaApp extends StatelessWidget {
   final AppStateProvider state;
@@ -56,9 +57,10 @@ class CareLinkKeralaApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: LoginScreen(state: state),
+          home: SplashScreen(state: state),
         );
       },
     );
   }
 }
+
