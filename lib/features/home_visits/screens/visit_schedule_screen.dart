@@ -4,6 +4,7 @@ import '../../../core/models/clinical_models.dart';
 import '../../../core/state/app_state_provider.dart';
 import '../../maps/screens/field_map_screen.dart';
 import 'visit_entry_screen.dart';
+import 'palliative_operations_center_screen.dart';
 
 class VisitScheduleScreen extends StatelessWidget {
   final AppStateProvider state;
@@ -21,6 +22,18 @@ class VisitScheduleScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text("Today's Visit Schedule"),
             actions: [
+              IconButton(
+                tooltip: 'Palliative Operations Center',
+                icon: const Icon(Icons.dashboard_customize_rounded, color: AppColors.emeraldLight),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PalliativeOperationsCenterScreen(state: state),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 tooltip: 'Open Live Route Map',
                 icon: const Icon(Icons.map_rounded),

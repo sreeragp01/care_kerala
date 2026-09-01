@@ -248,4 +248,111 @@ class ApiService {
     }
     return null;
   }
+
+  // ============================================================================
+  // Email & OTP Authentication APIs
+  // ============================================================================
+
+  /// Dispatches a 6-digit OTP code directly to user email or phone via Django SMTP
+  static Future<Map<String, dynamic>?> requestPasswordResetOtp(String emailOrPhone) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/password-reset/request/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email_or_phone': emailOrPhone.trim()}),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('API requestPasswordResetOtp error: $e');
+    }
+    return null;
+  }
+
+  /// Verifies OTP and updates user password on backend
+  static Future<Map<String, dynamic>?> confirmPasswordReset({
+    required String emailOrPhone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/password-reset/confirm/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email_or_phone': emailOrPhone.trim(),
+          'otp': otp.trim(),
+          'new_password': newPassword.trim(),
+        }),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('API confirmPasswordReset error: $e');
+    }
+    return null;
+  }
+
+  /// Dispatches a diagnostic test email to verify live SMTP connectivity
+  static Future<Map<String, dynamic>?> sendTestEmail(String recipientEmail) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/test-email/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': recipientEmail.trim()}),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('API sendTestEmail error: $e');
+    }
+    return null;
+  }
+
+  // ============================================================================
+  // Phone OTP & SMS Delivery APIs
+  // ============================================================================
+
+  /// Dispatches a 6-digit OTP code directly to an Indian mobile number via SMS Gateway
+  static Future<Map<String, dynamic>?> sendPhoneOtp(String phoneNumber) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/phone-otp/send/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'phone': phoneNumber.trim()}),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('API sendPhoneOtp error: $e');
+    }
+    return null;
+  }
+
+  /// Verifies phone OTP and returns authenticated patient session
+  static Future<Map<String, dynamic>?> verifyPhoneOtp({
+    required String phoneNumber,
+    required String otp,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/phone-otp/verify/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'phone': phoneNumber.trim(),
+          'otp': otp.trim(),
+        }),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('API verifyPhoneOtp error: $e');
+    }
+    return null;
+  }
 }

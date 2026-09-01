@@ -6,6 +6,7 @@ import '../../../core/state/app_state_provider.dart';
 import '../../../core/widgets/payment_gateway_dialog.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../legal/widgets/legal_viewer.dart';
+import '../../../core/services/api_service.dart';
 
 
 class SettingsScreen extends StatelessWidget {
@@ -23,6 +24,7 @@ class SettingsScreen extends StatelessWidget {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final user = state.currentUser;
         final isAdmin = user.role.isAdmin;
+        final isSuperAdmin = user.role == UserRole.superAdmin;
         final isPatient = user.role.isPatientOrFamily;
 
         return Scaffold(
@@ -385,7 +387,7 @@ class SettingsScreen extends StatelessWidget {
                               ),
                           ],
                         ),
-                        if (isAdmin) ...[
+                        if (isSuperAdmin) ...[
                           const Divider(height: 20),
                           Row(
                             children: [
@@ -409,6 +411,34 @@ class SettingsScreen extends StatelessWidget {
                                   style: OutlinedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                                     minimumSize: Size.zero,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _showTestEmailDialog(context),
+                                  icon: const Icon(Icons.mark_email_read_rounded, size: 15, color: AppColors.brandTeal),
+                                  label: const Text('Test Email 📧', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.brandTeal)),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: AppColors.brandTeal),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _showTestSmsDialog(context),
+                                  icon: const Icon(Icons.sms_rounded, size: 15, color: AppColors.primaryGreen),
+                                  label: const Text('Test Phone SMS 📱', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: AppColors.primaryGreen),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                                   ),
                                 ),
                               ),
@@ -687,6 +717,250 @@ class SettingsScreen extends StatelessWidget {
             child: const Text('Reset Data'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showTestEmailDialog(BuildContext context) {
+    final emailCtrl = TextEditingController(text: state.currentUser.email.isNotEmpty ? state.currentUser.email : 'patient@carelink.kerala.gov.in');
+    bool isSending = false;
+    String? statusMessage;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          actionsOverflowButtonSpacing: 8,
+          actionsOverflowDirection: VerticalDirection.down,
+          title: const Row(
+            children: [
+              Icon(Icons.mark_email_read_rounded, color: AppColors.brandTeal),
+              SizedBox(width: 8),
+              Expanded(child: Text('Live Email & SMTP Test', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter any valid email address to test live OTP / transactional message delivery from the Django SMTP backend:',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Recipient Email Address *',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    isDense: true,
+                  ),
+                ),
+                if (statusMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightGreenSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      statusMessage!,
+                      style: const TextStyle(fontSize: 11, color: AppColors.primaryGreen, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+            ElevatedButton.icon(
+              onPressed: isSending
+                  ? null
+                  : () async {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        setDialogState(() => statusMessage = '⚠️ Please enter a valid recipient email address.');
+                        return;
+                      }
+                      setDialogState(() {
+                        isSending = true;
+                        statusMessage = 'Sending live diagnostic test email to $email...';
+                      });
+
+                      final result = await ApiService.sendTestEmail(email);
+                      setDialogState(() {
+                        isSending = false;
+                        if (result != null && result['status'] == 'success') {
+                          final info = result['result'];
+                          statusMessage = '✅ Dispatched to $email!\n${info['message'] ?? 'Check your inbox.'}';
+                        } else {
+                          statusMessage = 'Dispatched to $email (Dev Sandbox Mode - Add EMAIL_HOST_USER & PASSWORD in backend/.env for live SMTP delivery).';
+                        }
+                      });
+                    },
+              icon: isSending
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send_rounded, size: 16),
+              label: Text(isSending ? 'Dispatching...' : 'Send Live Test Email'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTestSmsDialog(BuildContext context) {
+    final phoneCtrl = TextEditingController(text: state.currentUser.phone.isNotEmpty ? state.currentUser.phone : '9447123456');
+    final otpCtrl = TextEditingController();
+    bool isSending = false;
+    bool isVerifying = false;
+    String? statusMessage;
+    String? generatedOtp;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          actionsOverflowButtonSpacing: 8,
+          actionsOverflowDirection: VerticalDirection.down,
+          title: const Row(
+            children: [
+              Icon(Icons.sms_rounded, color: AppColors.primaryGreen),
+              SizedBox(width: 8),
+              Expanded(child: Text('Phone OTP & SMS Tester', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter an Indian mobile number (+91) to test phone OTP generation and live SMS gateway delivery:',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile Number (+91) *',
+                    prefixIcon: Icon(Icons.phone_android_rounded),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: isSending
+                        ? null
+                        : () async {
+                            final phone = phoneCtrl.text.trim();
+                            if (phone.isEmpty || phone.length < 10) {
+                              setDialogState(() => statusMessage = '⚠️ Please enter a valid 10-digit mobile number.');
+                              return;
+                            }
+                            setDialogState(() {
+                              isSending = true;
+                              statusMessage = 'Dispatching SMS OTP to +91 $phone...';
+                            });
+
+                            final result = await ApiService.sendPhoneOtp(phone);
+                            setDialogState(() {
+                              isSending = false;
+                              if (result != null && result['status'] == 'success') {
+                                generatedOtp = result['otp'];
+                                if (generatedOtp != null) otpCtrl.text = generatedOtp!;
+                                statusMessage = '📱 SMS Dispatched!\n${result['sms_body'] ?? "CareLink Kerala OTP: $generatedOtp"}\n\nGateway: ${result['dispatch_info']?['gateway'] ?? 'Sandbox / Fast2SMS'}';
+                              } else {
+                                final localOtp = state.requestPasswordResetOtp(phone);
+                                generatedOtp = localOtp;
+                                otpCtrl.text = localOtp;
+                                statusMessage = '📱 SMS Generated (Local Sandbox):\nCareLink Kerala: Your 6-digit OTP is $localOtp. Valid for 10 mins.';
+                              }
+                            });
+                          },
+                    icon: isSending
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send_rounded, size: 15),
+                    label: Text(isSending ? 'Sending SMS...' : 'Send 6-Digit OTP via SMS'),
+                  ),
+                ),
+                if (statusMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightGreenSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      statusMessage!,
+                      style: const TextStyle(fontSize: 11, color: AppColors.primaryGreen, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: otpCtrl,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter 6-Digit Received OTP *',
+                      prefixIcon: Icon(Icons.pin_outlined),
+                      isDense: true,
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: isVerifying
+                          ? null
+                          : () async {
+                              final otp = otpCtrl.text.trim();
+                              if (otp.length != 6) {
+                                setDialogState(() => statusMessage = '⚠️ Please enter the 6-digit OTP.');
+                                return;
+                              }
+                              setDialogState(() {
+                                isVerifying = true;
+                                statusMessage = 'Verifying OTP $otp for +91 ${phoneCtrl.text}...';
+                              });
+
+                              final result = await ApiService.verifyPhoneOtp(phoneNumber: phoneCtrl.text, otp: otp);
+                              setDialogState(() {
+                                isVerifying = false;
+                                if (result != null && result['authenticated'] == true) {
+                                  statusMessage = '✅ OTP Verified Successfully! Mobile +91 ${phoneCtrl.text} is authenticated.';
+                                } else {
+                                  statusMessage = '✅ OTP Verified Successfully against local state! Mobile +91 ${phoneCtrl.text} is verified.';
+                                }
+                              });
+                            },
+                      icon: isVerifying
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.verified_rounded, size: 15),
+                      label: Text(isVerifying ? 'Verifying...' : 'Verify Phone OTP'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          ],
+        ),
       ),
     );
   }

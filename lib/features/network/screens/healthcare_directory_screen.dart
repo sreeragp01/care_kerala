@@ -359,9 +359,13 @@ class _HealthcareDirectoryScreenState extends State<HealthcareDirectoryScreen> w
                         children: [
                           Icon(Icons.location_on_outlined, size: 14, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
                           const SizedBox(width: 4),
-                          Text(
-                            '${hospital.district} • ${hospital.organizationType}',
-                            style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                          Expanded(
+                            child: Text(
+                              '${hospital.district} • ${hospital.organizationType}',
+                              style: TextStyle(fontSize: 12, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -511,6 +515,8 @@ class _HealthcareDirectoryScreenState extends State<HealthcareDirectoryScreen> w
                       Text(
                         '${doctor.specialty} • ${doctor.experienceYears}y exp',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brandTeal),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         doctor.organizationName,

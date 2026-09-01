@@ -6,7 +6,10 @@ import '../../../core/state/app_state_provider.dart';
 import '../../../core/widgets/glass_card.dart';
 import 'doctor_opd_console_screen.dart';
 import 'reception_desk_screen.dart';
-import 'patient_live_queue_tracker_screen.dart';
+import 'queue_management_screen.dart';
+import 'hospital_queue_analytics_screen.dart';
+import '../../home_visits/screens/palliative_operations_center_screen.dart';
+import '../../home_visits/screens/family_caregiver_portal_screen.dart';
 
 class HospitalManagementDashboard extends StatefulWidget {
   final AppStateProvider state;
@@ -201,20 +204,86 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
             ],
           ),
           const SizedBox(height: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              side: const BorderSide(color: AppColors.brandTeal),
-            ),
-            icon: const Icon(Icons.track_changes_rounded, color: AppColors.brandTeal, size: 18),
-            label: const Text('Open Patient Live Queue Tracker 📱', style: TextStyle(color: AppColors.brandTeal, fontWeight: FontWeight.bold)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const PatientLiveQueueTrackerScreen()),
-              );
-            },
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: AppColors.brandHealthGreen, width: 1.5),
+                  ),
+                  icon: const Icon(Icons.dashboard_customize_rounded, color: AppColors.brandHealthGreen, size: 18),
+                  label: const Text('Multi-Queue Desk 🏥', style: TextStyle(color: AppColors.brandHealthGreen, fontWeight: FontWeight.bold, fontSize: 13)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const QueueManagementScreen()),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
+                  ),
+                  icon: const Icon(Icons.analytics_rounded, color: Color(0xFF38BDF8), size: 18),
+                  label: const Text('Flow Analytics 📊', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.bold, fontSize: 13)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const HospitalQueueAnalyticsScreen()),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandNavy,
+                    minimumSize: const Size(double.infinity, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.home_work_rounded, color: AppColors.emeraldLight, size: 18),
+                  label: const Text('Palliative Ops 🏠', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => PalliativeOperationsCenterScreen(state: state)),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: const BorderSide(color: AppColors.brandTeal, width: 1.5),
+                  ),
+                  icon: const Icon(Icons.family_restroom_rounded, color: AppColors.brandTeal, size: 18),
+                  label: const Text('Family Portal 👨‍👩‍👧', style: TextStyle(color: AppColors.brandTeal, fontWeight: FontWeight.bold, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => FamilyCaregiverPortalScreen(state: state)),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
 
@@ -270,23 +339,28 @@ class _HospitalManagementDashboardState extends State<HospitalManagementDashboar
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(Icons.local_hospital_rounded, color: color, size: 16),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(dept, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary)),
-                  Text(doctor, style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
-                ],
-              ),
-            ],
+          Expanded(
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  child: Icon(Icons.local_hospital_rounded, color: color, size: 16),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(dept, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(doctor, style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

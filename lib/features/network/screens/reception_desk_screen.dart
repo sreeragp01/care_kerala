@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/glass_card.dart';
+import 'queue_management_screen.dart';
 
 class ReceptionDeskScreen extends StatefulWidget {
   final String hospitalName;
@@ -129,6 +130,16 @@ class _ReceptionDeskScreenState extends State<ReceptionDeskScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.dashboard_customize_rounded, color: Color(0xFF38BDF8)),
+            tooltip: 'Multi-Queue Management Desk',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QueueManagementScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.confirmation_number_outlined, color: AppColors.brandTeal),
             tooltip: 'Issue Walk-in Token',
             onPressed: _showIssueTokenModal,
@@ -217,22 +228,27 @@ class _ReceptionDeskScreenState extends State<ReceptionDeskScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(Icons.local_hospital_rounded, color: color, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(dept, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(doctor, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                ],
-              ),
-            ],
+          Expanded(
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  child: Icon(Icons.local_hospital_rounded, color: color, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(dept, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(doctor, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

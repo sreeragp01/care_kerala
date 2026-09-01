@@ -99,7 +99,7 @@ Respond in JSON format with two keys:
   }
 
   /// Handles Natural Language Healthcare Queries in English or Malayalam
-  static Future<String> processNaturalQuery(String userQuery, String contextSummary) async {
+  static Future<String?> processNaturalQuery(String userQuery, String contextSummary) async {
     final prompt = """
 You are CareLink Kerala's AI Healthcare Assistant speaking to a palliative healthcare worker or administrator in Kerala.
 Answer this query concisely and accurately in simple, professional language (in English or Malayalam depending on query language):
@@ -108,8 +108,7 @@ Query: "$userQuery"
 Active Platform Data Context: $contextSummary
 """;
 
-    return await _callGeminiApi(prompt) ??
-        "Found relevant patient records and clinical logs matching '$userQuery'.";
+    return await _callGeminiApi(prompt);
   }
 
   /// Internal HTTP call to Google Gemini REST API endpoint

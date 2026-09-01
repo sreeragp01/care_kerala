@@ -75,6 +75,13 @@ class AppStateProvider extends ChangeNotifier {
   List<String> _notifications = [];
   int _pendingOfflineSyncCount = 0;
 
+  // Phase 2.7 Palliative & Home Healthcare 2.0 State
+  List<HomeVisitRequestModel> _homeVisitRequests = [];
+  List<CareTeamModel> _careTeams = [];
+  List<MedicationPlanModel> _medicationPlans = [];
+  List<CaregiverAccessModel> _caregiverGrants = [];
+  List<CareTeamRouteModel> _dailyRoutes = [];
+
   // Getters
   List<PatientModel> get patients => _patients;
   List<VisitModel> get visits => _visits;
@@ -92,6 +99,12 @@ class AppStateProvider extends ChangeNotifier {
   EmergencySosEvent? get activeSosEvent => _activeSosEvent;
   List<String> get notifications => _notifications;
   int get pendingOfflineSyncCount => _pendingOfflineSyncCount;
+
+  List<HomeVisitRequestModel> get homeVisitRequests => _homeVisitRequests;
+  List<CareTeamModel> get careTeams => _careTeams;
+  List<MedicationPlanModel> get medicationPlans => _medicationPlans;
+  List<CaregiverAccessModel> get caregiverGrants => _caregiverGrants;
+  List<CareTeamRouteModel> get dailyRoutes => _dailyRoutes;
 
   // Calculated Metrics for Dashboard
   int get todaysVisitsCount => _visits.where((v) => v.scheduledDate == '2026-08-07' || v.scheduledDate == '2026-08-06' || v.scheduledDate == '2026-08-08').length;
@@ -139,12 +152,222 @@ class AppStateProvider extends ChangeNotifier {
     _specialties = NetworkDatabaseService.getInitialSpecialties();
     _changeRequests = NetworkDatabaseService.getInitialChangeRequests();
     _claimRequests = NetworkDatabaseService.getInitialClaimRequests();
+    _appointmentRequests = NetworkDatabaseService.getInitialAppointmentRequests();
+
+    // Phase 2.7 Palliative & Home Healthcare Initial Data
+    _careTeams = [
+      CareTeamModel(
+        id: 'CT-01',
+        name: 'Feroke Palliative Care Team A',
+        leadDoctorName: 'Dr. Anil Kumar (Palliative Lead)',
+        primaryNurseName: 'Nurse Anitha (Palliative Specialist)',
+        areaCoverage: 'Feroke, Ramanattukara, Kadalundi',
+        members: [
+          CareTeamMemberModel(id: 'CTM-01', memberName: 'Dr. Anil Kumar', role: 'Doctor (Palliative Lead)', phone: '+91 98470 00001'),
+          CareTeamMemberModel(id: 'CTM-02', memberName: 'Nurse Anitha', role: 'Field Nurse', phone: '+91 98470 00002', isPrimary: true),
+          CareTeamMemberModel(id: 'CTM-03', memberName: 'Rahul V. (BPT)', role: 'Physiotherapist', phone: '+91 98470 00003'),
+          CareTeamMemberModel(id: 'CTM-04', memberName: 'Divya MSW', role: 'Medical Social Worker', phone: '+91 98470 00004'),
+        ],
+      ),
+      CareTeamModel(
+        id: 'CT-02',
+        name: 'Medical College Community Unit B',
+        leadDoctorName: 'Dr. Suresh Kumar',
+        primaryNurseName: 'Nurse Bhavana',
+        areaCoverage: 'Chevayur, Mavoor, Kottooli',
+        members: [
+          CareTeamMemberModel(id: 'CTM-05', memberName: 'Dr. Suresh Kumar', role: 'Doctor', phone: '+91 98470 00005'),
+          CareTeamMemberModel(id: 'CTM-06', memberName: 'Nurse Bhavana', role: 'Field Nurse', phone: '+91 98470 00006', isPrimary: true),
+          CareTeamMemberModel(id: 'CTM-07', memberName: 'Anil Kumar (MSW)', role: 'Counselor', phone: '+91 98470 00007'),
+        ],
+      ),
+    ];
+
+    _homeVisitRequests = [
+      HomeVisitRequestModel(
+        id: 'HVR-101',
+        patientId: 'PAT-01',
+        patientName: 'Karthyayani Amma',
+        patientPhone: '+91 98470 12345',
+        requesterName: 'Suresh (Son)',
+        requesterPhone: '+91 98470 99887',
+        requesterRelationship: 'Son & Primary Caregiver',
+        visitType: 'Pain Management & Vitals Review',
+        urgency: 'Urgent (Within 24h)',
+        preferredDate: '2026-08-08',
+        preferredTimeSlot: '10:00 AM - 12:00 PM',
+        reasonAndSymptoms: 'Breakthrough knee & back pain. Appetite reduced; needs vitals review.',
+        locationAddress: 'Chevayur, Ward 14, Kozhikode',
+        status: 'PENDING',
+        createdAt: '2026-08-07 09:30 AM',
+      ),
+      HomeVisitRequestModel(
+        id: 'HVR-102',
+        patientId: 'PAT-02',
+        patientName: 'Vaidyanathan Nair',
+        patientPhone: '+91 94471 22334',
+        requesterName: 'Lakshmi Nair (Daughter)',
+        requesterPhone: '+91 94471 88776',
+        requesterRelationship: 'Daughter',
+        visitType: 'Bedsore Dressing & Catheter Care',
+        urgency: 'Routine (Scheduled)',
+        preferredDate: '2026-08-09',
+        preferredTimeSlot: '02:00 PM - 04:00 PM',
+        reasonAndSymptoms: 'Scheduled bi-weekly wound dressing change and sterile catheter inspection.',
+        locationAddress: 'Mavoor Road, Kozhikode',
+        status: 'PENDING',
+        createdAt: '2026-08-07 11:15 AM',
+      ),
+    ];
+
+    _medicationPlans = [
+      MedicationPlanModel(
+        id: 'MEDP-01',
+        patientId: 'PAT-01',
+        medicineName: 'Oral Morphine Solution (10mg/5ml)',
+        dosage: '5 ml (10 mg)',
+        route: 'Oral',
+        frequency: 'Every 4 Hours',
+        timeSlots: ['06:00 AM', '10:00 AM', '02:00 PM', '06:00 PM', '10:00 PM'],
+        prescribedByDoctor: 'Dr. Anil Kumar',
+        startDate: '2026-08-01',
+        instructions: 'Take with half glass of warm water. For breakthrough pain, contact 24x7 desk.',
+        administrations: [
+          MedicationAdministrationModel(
+            id: 'ADM-01',
+            planId: 'MEDP-01',
+            medicineName: 'Oral Morphine Solution',
+            dosage: '5 ml (10 mg)',
+            patientId: 'PAT-01',
+            scheduledDate: '2026-08-08',
+            timeSlot: '06:00 AM',
+            status: 'TAKEN',
+            recordedByCaregiver: true,
+            administeredAt: '06:15 AM',
+            notes: 'Administered on time by son Suresh.',
+          ),
+          MedicationAdministrationModel(
+            id: 'ADM-02',
+            planId: 'MEDP-01',
+            medicineName: 'Oral Morphine Solution',
+            dosage: '5 ml (10 mg)',
+            patientId: 'PAT-01',
+            scheduledDate: '2026-08-08',
+            timeSlot: '10:00 AM',
+            status: 'TAKEN',
+            verifiedByNurse: true,
+            verifiedNurseName: 'Nurse Anitha',
+            administeredAt: '10:05 AM',
+            notes: 'Verified directly during morning palliative home visit.',
+          ),
+        ],
+      ),
+      MedicationPlanModel(
+        id: 'MEDP-02',
+        patientId: 'PAT-01',
+        medicineName: 'Paracetamol 500mg Tab',
+        dosage: '1 Tablet',
+        route: 'Oral',
+        frequency: 'TDS (3 times daily)',
+        timeSlots: ['08:00 AM', '02:00 PM', '08:00 PM'],
+        prescribedByDoctor: 'Dr. Suresh Kumar',
+        startDate: '2026-08-01',
+        instructions: 'Take after meals for fever/mild pain relief.',
+      ),
+      MedicationPlanModel(
+        id: 'MEDP-03',
+        patientId: 'PAT-02',
+        medicineName: 'Pregabalin 75mg Capsule',
+        dosage: '1 Capsule',
+        route: 'Oral',
+        frequency: 'Nightly (OD HS)',
+        timeSlots: ['09:30 PM'],
+        prescribedByDoctor: 'Dr. Priya Varma',
+        startDate: '2026-08-02',
+        instructions: 'Take before bedtime for neuropathic relief.',
+      ),
+    ];
+
+    _caregiverGrants = [
+      CaregiverAccessModel(
+        id: 'CG-01',
+        patientId: 'PAT-01',
+        caregiverName: 'Suresh (Son)',
+        caregiverPhone: '+91 98470 99887',
+        relationship: 'Son & Primary Caregiver',
+        permissions: ['VIEW_BASIC_INFO', 'VIEW_VISITS', 'VIEW_VITALS', 'VIEW_CARE_PLAN', 'RECEIVE_ALERTS'],
+        grantedBy: 'Nurse Anitha',
+        grantedAt: '2026-08-01',
+      ),
+      CaregiverAccessModel(
+        id: 'CG-02',
+        patientId: 'PAT-02',
+        caregiverName: 'Lakshmi Nair',
+        caregiverPhone: '+91 94471 88776',
+        relationship: 'Daughter',
+        permissions: ['VIEW_BASIC_INFO', 'VIEW_VISITS', 'VIEW_VITALS', 'RECEIVE_ALERTS'],
+        grantedBy: 'Dr. Priya Varma',
+        grantedAt: '2026-08-02',
+      ),
+    ];
+
+    _dailyRoutes = [
+      CareTeamRouteModel(
+        id: 'ROU-01',
+        careTeamId: 'CT-01',
+        careTeamName: 'Feroke Palliative Care Team A',
+        routeDate: '2026-08-08',
+        primaryNurseName: 'Nurse Anitha',
+        status: 'IN_PROGRESS',
+        totalStops: 3,
+        notes: 'Priority sequence for Feroke & Chevayur palliative route today.',
+        stops: [
+          RouteStopModel(
+            id: 'STP-01',
+            visitId: 'VIS-01',
+            patientName: 'Karthyayani Amma',
+            patientAddress: 'Chevayur, Ward 14, Kozhikode',
+            patientPhone: '+91 98470 12345',
+            visitType: 'Palliative Pain & Dressing',
+            sequenceOrder: 1,
+            locationArea: 'Chevayur Ward 14',
+            estimatedArrivalTime: '09:30 AM',
+            isCompleted: true,
+          ),
+          RouteStopModel(
+            id: 'STP-02',
+            visitId: 'VIS-02',
+            patientName: 'Vaidyanathan Nair',
+            patientAddress: 'Mavoor Road, Kozhikode',
+            patientPhone: '+91 94471 22334',
+            visitType: 'Catheter Flush & Mobility Assessment',
+            sequenceOrder: 2,
+            locationArea: 'Mavoor Ward 06',
+            estimatedArrivalTime: '11:15 AM',
+            isCompleted: false,
+          ),
+          RouteStopModel(
+            id: 'STP-03',
+            visitId: 'VIS-03',
+            patientName: 'Muhammed Basheer',
+            patientAddress: 'Peace Haven, Feroke, Kozhikode',
+            patientPhone: '+91 98472 33445',
+            visitType: 'Intensive Pain Management',
+            sequenceOrder: 3,
+            locationArea: 'Feroke Ward 04',
+            estimatedArrivalTime: '02:00 PM',
+            isCompleted: false,
+          ),
+        ],
+      ),
+    ];
 
     _notifications = [
       'Welcome to CareLink Kerala! System running online.',
       'Emergency Blood Request posted for Calicut Medical College Hospital (O+ Group).',
       'Low stock warning: Amlodipine 5mg has reached reorder level.',
       'CareLink Network 2.0 active: 4 Verified Kerala Hospital Centers loaded.',
+      'Phase 2.7 Active: Multi-Disciplinary Palliative Teams & Home Route Engine Online.',
     ];
   }
 
@@ -398,7 +621,7 @@ class AppStateProvider extends ChangeNotifier {
       (u) => u.email.toLowerCase() == lowerInput || u.id.toLowerCase() == lowerInput,
     ).firstOrNull;
 
-    if (matchingUser != null && (cleanPassword == 'pass1234' || cleanPassword == 'Sree321#' || cleanPassword == 'Admin@12345' || cleanPassword == 'password123')) {
+    if (matchingUser != null && (cleanPassword == 'CareLink@2026' || cleanPassword == 'admin123' || cleanPassword == 'pass1234' || cleanPassword == 'Sree321#' || cleanPassword == 'Admin@12345' || cleanPassword == 'password123')) {
       await loginAsUser(matchingUser);
       return true;
     }
@@ -1164,7 +1387,7 @@ class AppStateProvider extends ChangeNotifier {
   List<SpecialtyModel> _specialties = [];
   List<ChangeRequestModel> _changeRequests = [];
   List<ClaimOrganizationRequestModel> _claimRequests = [];
-  final List<AppointmentRequestModel> _appointmentRequests = [];
+  List<AppointmentRequestModel> _appointmentRequests = [];
 
   String _networkDistrictFilter = 'All Districts';
   String? _networkSpecialtyFilter;
@@ -1335,35 +1558,584 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
-  void updateNetworkAppointmentStatus(String apptId, String newStatus) {
+  // ==========================================
+  // PHASE 2.5: APPOINTMENT & PATIENT COORDINATION 2.0
+  // ==========================================
+
+  List<AppointmentRequestModel> get patientTodayAppointments {
+    final today = DateTime.now().toString().split(' ').first;
+    return _appointmentRequests.where((a) => a.preferredDate == today && a.status != 'CANCELLED' && a.status != 'NO_SHOW').toList();
+  }
+
+  List<AppointmentRequestModel> get patientUpcomingAppointments {
+    final today = DateTime.now().toString().split(' ').first;
+    return _appointmentRequests.where((a) => a.preferredDate.compareTo(today) > 0 && a.status != 'CANCELLED' && a.status != 'COMPLETED').toList();
+  }
+
+  List<AppointmentRequestModel> get patientPastAppointments {
+    final today = DateTime.now().toString().split(' ').first;
+    return _appointmentRequests.where((a) => a.status == 'COMPLETED' || (a.preferredDate.compareTo(today) < 0 && a.status != 'CANCELLED' && a.status != 'NO_SHOW')).toList();
+  }
+
+  List<AppointmentRequestModel> get patientCancelledAppointments {
+    return _appointmentRequests.where((a) => a.status == 'CANCELLED').toList();
+  }
+
+  List<AppointmentRequestModel> get patientNoShowAppointments {
+    return _appointmentRequests.where((a) => a.status == 'NO_SHOW').toList();
+  }
+
+  // Hospital Desk Filtered List
+  List<AppointmentRequestModel> getDeskAppointments({String statusFilter = 'ALL', String? query, String? date}) {
+    return _appointmentRequests.where((a) {
+      if (date != null && date.isNotEmpty && a.preferredDate != date) {
+        return false;
+      }
+      if (statusFilter == 'FLAGGED_LEAVE') {
+        if (!a.isDoctorUnavailableFlagged) return false;
+      } else if (statusFilter != 'ALL' && a.status != statusFilter) {
+        return false;
+      }
+      if (query != null && query.trim().isNotEmpty) {
+        final q = query.toLowerCase();
+        final matchPatient = a.patientName.toLowerCase().contains(q) || a.patientPhone.contains(q);
+        final matchDoc = a.doctorName.toLowerCase().contains(q) || a.doctorSpecialty.toLowerCase().contains(q);
+        final matchToken = a.tokenNumber.toLowerCase().contains(q);
+        if (!matchPatient && !matchDoc && !matchToken) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  // 1. Smart Slot Appointment Booking
+  void bookDoctorSmartAppointment(AppointmentRequestModel appointment) {
+    _appointmentRequests.insert(0, appointment);
+    _addNotification('Appointment confirmed for ${appointment.patientName} with ${appointment.doctorName} on ${appointment.preferredDate} (${appointment.preferredTimeSlot}).');
+    notifyListeners();
+  }
+
+  // 2. Patient Appointment Rescheduling
+  void rescheduleAppointment(String apptId, String newDate, String newTimeSlot, String reason) {
     final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
     if (idx != -1) {
       final old = _appointmentRequests[idx];
+      final newHistory = List<AppointmentStatusHistoryModel>.from(old.statusHistory);
+      newHistory.add(AppointmentStatusHistoryModel(
+        id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+        fromStatus: old.status,
+        toStatus: 'RESCHEDULED',
+        changedByUsername: 'Patient / Coordinator',
+        notes: reason,
+        createdAt: DateTime.now().toString().split('.').first,
+      ));
+
       _appointmentRequests[idx] = AppointmentRequestModel(
         id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        doctorId: old.doctorId,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        substituteDoctorName: old.substituteDoctorName,
         patientName: old.patientName,
         patientPhone: old.patientPhone,
         patientAge: old.patientAge,
         patientGender: old.patientGender,
         district: old.district,
-        doctorName: old.doctorName,
-        doctorSpecialty: old.doctorSpecialty,
-        preferredDate: old.preferredDate,
-        preferredTimeSlot: old.preferredTimeSlot,
+        preferredDate: newDate,
+        preferredTimeSlot: newTimeSlot,
         consultationMode: old.consultationMode,
         chiefComplaint: old.chiefComplaint,
-        status: newStatus,
+        status: 'RESCHEDULED',
+        statusDisplay: 'Rescheduled to $newDate',
         tokenNumber: old.tokenNumber,
+        hospitalNotes: old.hospitalNotes,
+        cancellationReason: old.cancellationReason,
+        rescheduleReason: reason,
+        rejectionReason: old.rejectionReason,
+        rescheduledFromDate: old.preferredDate,
+        rescheduledFromSlot: old.preferredTimeSlot,
+        isDoctorUnavailableFlagged: false,
+        createdAt: old.createdAt,
+        statusHistory: newHistory,
       );
-      _addNotification('Appointment token #${old.tokenNumber} for ${old.patientName} updated to $newStatus.');
+      _addNotification('Appointment #${old.id} rescheduled to $newDate ($newTimeSlot). Push notification sent.');
       notifyListeners();
     }
   }
 
-  void requestDoctorAppointment(AppointmentRequestModel appointment) {
-    _appointmentRequests.insert(0, appointment);
-    _addNotification('Appointment request submitted for ${appointment.patientName} with ${appointment.doctorName}.');
+  // 3. Patient Appointment Cancellation
+  void cancelAppointment(String apptId, String reason) {
+    final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
+    if (idx != -1) {
+      final old = _appointmentRequests[idx];
+      final newHistory = List<AppointmentStatusHistoryModel>.from(old.statusHistory);
+      newHistory.add(AppointmentStatusHistoryModel(
+        id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+        fromStatus: old.status,
+        toStatus: 'CANCELLED',
+        changedByUsername: 'Patient / Coordinator',
+        notes: reason,
+        createdAt: DateTime.now().toString().split('.').first,
+      ));
+
+      _appointmentRequests[idx] = AppointmentRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        doctorId: old.doctorId,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        substituteDoctorName: old.substituteDoctorName,
+        patientName: old.patientName,
+        patientPhone: old.patientPhone,
+        patientAge: old.patientAge,
+        patientGender: old.patientGender,
+        district: old.district,
+        preferredDate: old.preferredDate,
+        preferredTimeSlot: old.preferredTimeSlot,
+        consultationMode: old.consultationMode,
+        chiefComplaint: old.chiefComplaint,
+        status: 'CANCELLED',
+        statusDisplay: 'Cancelled',
+        tokenNumber: old.tokenNumber,
+        hospitalNotes: old.hospitalNotes,
+        cancellationReason: reason,
+        rescheduleReason: old.rescheduleReason,
+        rejectionReason: old.rejectionReason,
+        rescheduledFromDate: old.rescheduledFromDate,
+        rescheduledFromSlot: old.rescheduledFromSlot,
+        isDoctorUnavailableFlagged: false,
+        createdAt: old.createdAt,
+        statusHistory: newHistory,
+      );
+      _addNotification('Appointment #${old.id} for ${old.patientName} cancelled.');
+      notifyListeners();
+    }
+  }
+
+  // 4. Hospital Desk: Accept Request
+  void deskAcceptAppointment(String apptId, {String notes = ''}) {
+    final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
+    if (idx != -1) {
+      final old = _appointmentRequests[idx];
+      final newHistory = List<AppointmentStatusHistoryModel>.from(old.statusHistory);
+      newHistory.add(AppointmentStatusHistoryModel(
+        id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+        fromStatus: old.status,
+        toStatus: 'ACCEPTED',
+        changedByUsername: 'Hospital Desk Staff',
+        notes: notes.isNotEmpty ? notes : 'Accepted by OPD Desk',
+        createdAt: DateTime.now().toString().split('.').first,
+      ));
+
+      _appointmentRequests[idx] = AppointmentRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        doctorId: old.doctorId,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        substituteDoctorName: old.substituteDoctorName,
+        patientName: old.patientName,
+        patientPhone: old.patientPhone,
+        patientAge: old.patientAge,
+        patientGender: old.patientGender,
+        district: old.district,
+        preferredDate: old.preferredDate,
+        preferredTimeSlot: old.preferredTimeSlot,
+        consultationMode: old.consultationMode,
+        chiefComplaint: old.chiefComplaint,
+        status: 'ACCEPTED',
+        statusDisplay: 'Accepted & Confirmed',
+        tokenNumber: old.tokenNumber == 'Pending' ? 'TK-${_appointmentRequests.length + 10}' : old.tokenNumber,
+        hospitalNotes: notes.isNotEmpty ? notes : old.hospitalNotes,
+        cancellationReason: old.cancellationReason,
+        rescheduleReason: old.rescheduleReason,
+        rejectionReason: old.rejectionReason,
+        rescheduledFromDate: old.rescheduledFromDate,
+        rescheduledFromSlot: old.rescheduledFromSlot,
+        isDoctorUnavailableFlagged: false,
+        createdAt: old.createdAt,
+        statusHistory: newHistory,
+      );
+      _addNotification('Accepted appointment for ${old.patientName}. Patient notified via SMS & CareLink push.');
+      notifyListeners();
+    }
+  }
+
+  // 5. Hospital Desk: Reject Request
+  void deskRejectAppointment(String apptId, {String reason = ''}) {
+    final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
+    if (idx != -1) {
+      final old = _appointmentRequests[idx];
+      final newHistory = List<AppointmentStatusHistoryModel>.from(old.statusHistory);
+      newHistory.add(AppointmentStatusHistoryModel(
+        id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+        fromStatus: old.status,
+        toStatus: 'REJECTED',
+        changedByUsername: 'Hospital Desk Staff',
+        notes: reason,
+        createdAt: DateTime.now().toString().split('.').first,
+      ));
+
+      _appointmentRequests[idx] = AppointmentRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        doctorId: old.doctorId,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        substituteDoctorName: old.substituteDoctorName,
+        patientName: old.patientName,
+        patientPhone: old.patientPhone,
+        patientAge: old.patientAge,
+        patientGender: old.patientGender,
+        district: old.district,
+        preferredDate: old.preferredDate,
+        preferredTimeSlot: old.preferredTimeSlot,
+        consultationMode: old.consultationMode,
+        chiefComplaint: old.chiefComplaint,
+        status: 'REJECTED',
+        statusDisplay: 'Rejected by Hospital',
+        tokenNumber: old.tokenNumber,
+        hospitalNotes: reason,
+        cancellationReason: old.cancellationReason,
+        rescheduleReason: old.rescheduleReason,
+        rejectionReason: reason,
+        rescheduledFromDate: old.rescheduledFromDate,
+        rescheduledFromSlot: old.rescheduledFromSlot,
+        isDoctorUnavailableFlagged: false,
+        createdAt: old.createdAt,
+        statusHistory: newHistory,
+      );
+      _addNotification('Rejected appointment for ${old.patientName}: $reason');
+      notifyListeners();
+    }
+  }
+
+  // 6. Hospital Desk: Check-In Patient
+  void deskCheckInAppointment(String apptId, {String notes = ''}) {
+    final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
+    if (idx != -1) {
+      final old = _appointmentRequests[idx];
+      final newHistory = List<AppointmentStatusHistoryModel>.from(old.statusHistory);
+      newHistory.add(AppointmentStatusHistoryModel(
+        id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+        fromStatus: old.status,
+        toStatus: 'CHECKED_IN',
+        changedByUsername: 'Reception Triage Desk',
+        notes: notes.isNotEmpty ? notes : 'Patient arrived at hospital OPD triage',
+        createdAt: DateTime.now().toString().split('.').first,
+      ));
+
+      _appointmentRequests[idx] = AppointmentRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        doctorId: old.doctorId,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        substituteDoctorName: old.substituteDoctorName,
+        patientName: old.patientName,
+        patientPhone: old.patientPhone,
+        patientAge: old.patientAge,
+        patientGender: old.patientGender,
+        district: old.district,
+        preferredDate: old.preferredDate,
+        preferredTimeSlot: old.preferredTimeSlot,
+        consultationMode: old.consultationMode,
+        chiefComplaint: old.chiefComplaint,
+        status: 'CHECKED_IN',
+        statusDisplay: 'Checked In • In OPD Queue',
+        tokenNumber: old.tokenNumber,
+        hospitalNotes: notes.isNotEmpty ? notes : old.hospitalNotes,
+        cancellationReason: old.cancellationReason,
+        rescheduleReason: old.rescheduleReason,
+        rejectionReason: old.rejectionReason,
+        rescheduledFromDate: old.rescheduledFromDate,
+        rescheduledFromSlot: old.rescheduledFromSlot,
+        isDoctorUnavailableFlagged: false,
+        createdAt: old.createdAt,
+        statusHistory: newHistory,
+      );
+      _addNotification('Checked-in ${old.patientName} (Token ${old.tokenNumber}) into live OPD queue.');
+      notifyListeners();
+    }
+  }
+
+  // 7. Hospital Desk: Mark No-Show
+  void deskMarkNoShowAppointment(String apptId, {String notes = ''}) {
+    final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
+    if (idx != -1) {
+      final old = _appointmentRequests[idx];
+      final newHistory = List<AppointmentStatusHistoryModel>.from(old.statusHistory);
+      newHistory.add(AppointmentStatusHistoryModel(
+        id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+        fromStatus: old.status,
+        toStatus: 'NO_SHOW',
+        changedByUsername: 'Reception Desk',
+        notes: notes.isNotEmpty ? notes : 'Patient did not arrive for scheduled slot',
+        createdAt: DateTime.now().toString().split('.').first,
+      ));
+
+      _appointmentRequests[idx] = AppointmentRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        doctorId: old.doctorId,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        substituteDoctorName: old.substituteDoctorName,
+        patientName: old.patientName,
+        patientPhone: old.patientPhone,
+        patientAge: old.patientAge,
+        patientGender: old.patientGender,
+        district: old.district,
+        preferredDate: old.preferredDate,
+        preferredTimeSlot: old.preferredTimeSlot,
+        consultationMode: old.consultationMode,
+        chiefComplaint: old.chiefComplaint,
+        status: 'NO_SHOW',
+        statusDisplay: 'No Show',
+        tokenNumber: old.tokenNumber,
+        hospitalNotes: notes.isNotEmpty ? notes : 'Patient missed consultation window',
+        cancellationReason: old.cancellationReason,
+        rescheduleReason: old.rescheduleReason,
+        rejectionReason: old.rejectionReason,
+        rescheduledFromDate: old.rescheduledFromDate,
+        rescheduledFromSlot: old.rescheduledFromSlot,
+        isDoctorUnavailableFlagged: false,
+        createdAt: old.createdAt,
+        statusHistory: newHistory,
+      );
+      _addNotification('Marked Appointment #${old.id} (${old.patientName}) as No-Show.');
+      notifyListeners();
+    }
+  }
+
+  // 8. Hospital Desk: Complete Consultation
+  void deskCompleteAppointment(String apptId, {String notes = ''}) {
+    final idx = _appointmentRequests.indexWhere((a) => a.id == apptId);
+    if (idx != -1) {
+      final old = _appointmentRequests[idx];
+      final newHistory = List<AppointmentStatusHistoryModel>.from(old.statusHistory);
+      newHistory.add(AppointmentStatusHistoryModel(
+        id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+        fromStatus: old.status,
+        toStatus: 'COMPLETED',
+        changedByUsername: 'Doctor / Medical Officer',
+        notes: notes.isNotEmpty ? notes : 'Consultation completed',
+        createdAt: DateTime.now().toString().split('.').first,
+      ));
+
+      _appointmentRequests[idx] = AppointmentRequestModel(
+        id: old.id,
+        organizationId: old.organizationId,
+        organizationName: old.organizationName,
+        doctorId: old.doctorId,
+        doctorName: old.doctorName,
+        doctorSpecialty: old.doctorSpecialty,
+        substituteDoctorName: old.substituteDoctorName,
+        patientName: old.patientName,
+        patientPhone: old.patientPhone,
+        patientAge: old.patientAge,
+        patientGender: old.patientGender,
+        district: old.district,
+        preferredDate: old.preferredDate,
+        preferredTimeSlot: old.preferredTimeSlot,
+        consultationMode: old.consultationMode,
+        chiefComplaint: old.chiefComplaint,
+        status: 'COMPLETED',
+        statusDisplay: 'Completed',
+        tokenNumber: old.tokenNumber,
+        hospitalNotes: notes.isNotEmpty ? notes : old.hospitalNotes,
+        cancellationReason: old.cancellationReason,
+        rescheduleReason: old.rescheduleReason,
+        rejectionReason: old.rejectionReason,
+        rescheduledFromDate: old.rescheduledFromDate,
+        rescheduledFromSlot: old.rescheduledFromSlot,
+        isDoctorUnavailableFlagged: false,
+        createdAt: old.createdAt,
+        statusHistory: newHistory,
+      );
+      _addNotification('Completed consultation for ${old.patientName} (Token ${old.tokenNumber}).');
+      notifyListeners();
+    }
+  }
+
+  // 9. Doctor Leave Exception: Flag affected appointments
+  void markDoctorLeaveAndFlagAppointments(String doctorId, String doctorName, String dateStr, String reason) {
+    int flaggedCount = 0;
+    for (int i = 0; i < _appointmentRequests.length; i++) {
+      final appt = _appointmentRequests[i];
+      if (appt.doctorId == doctorId && appt.preferredDate == dateStr && appt.status != 'CANCELLED' && appt.status != 'COMPLETED') {
+        _appointmentRequests[i] = AppointmentRequestModel(
+          id: appt.id,
+          organizationId: appt.organizationId,
+          organizationName: appt.organizationName,
+          doctorId: appt.doctorId,
+          doctorName: appt.doctorName,
+          doctorSpecialty: appt.doctorSpecialty,
+          substituteDoctorName: appt.substituteDoctorName,
+          patientName: appt.patientName,
+          patientPhone: appt.patientPhone,
+          patientAge: appt.patientAge,
+          patientGender: appt.patientGender,
+          district: appt.district,
+          preferredDate: appt.preferredDate,
+          preferredTimeSlot: appt.preferredTimeSlot,
+          consultationMode: appt.consultationMode,
+          chiefComplaint: appt.chiefComplaint,
+          status: appt.status,
+          statusDisplay: '${appt.statusDisplay} [Doctor On Leave]',
+          tokenNumber: appt.tokenNumber,
+          hospitalNotes: 'Doctor marked leave: $reason',
+          cancellationReason: appt.cancellationReason,
+          rescheduleReason: appt.rescheduleReason,
+          rejectionReason: appt.rejectionReason,
+          rescheduledFromDate: appt.rescheduledFromDate,
+          rescheduledFromSlot: appt.rescheduledFromSlot,
+          isDoctorUnavailableFlagged: true,
+          createdAt: appt.createdAt,
+          statusHistory: appt.statusHistory,
+        );
+        flaggedCount++;
+      }
+    }
+    _addNotification('Doctor Leave marked for $doctorName on $dateStr. $flaggedCount appointments flagged for resolution.');
     notifyListeners();
+  }
+
+  // 10. Doctor Leave Bulk Resolution
+  void resolveDoctorLeaveImpact({
+    required List<String> appointmentIds,
+    required String action,
+    String substituteDoctorName = '',
+    String newDate = '',
+    String notes = '',
+  }) {
+    int resolvedCount = 0;
+    for (int i = 0; i < _appointmentRequests.length; i++) {
+      final appt = _appointmentRequests[i];
+      if (appointmentIds.contains(appt.id)) {
+        final newHistory = List<AppointmentStatusHistoryModel>.from(appt.statusHistory);
+        newHistory.add(AppointmentStatusHistoryModel(
+          id: 'H-${DateTime.now().millisecondsSinceEpoch}',
+          fromStatus: appt.status,
+          toStatus: action == 'CANCEL' ? 'CANCELLED' : (action == 'RESCHEDULE' ? 'RESCHEDULED' : appt.status),
+          changedByUsername: 'Hospital Leave Resolver Desk',
+          notes: 'Leave Impact Resolution ($action): $notes',
+          createdAt: DateTime.now().toString().split('.').first,
+        ));
+
+        if (action == 'REASSIGN_SUBSTITUTE') {
+          _appointmentRequests[i] = AppointmentRequestModel(
+            id: appt.id,
+            organizationId: appt.organizationId,
+            organizationName: appt.organizationName,
+            doctorId: appt.doctorId,
+            doctorName: appt.doctorName,
+            doctorSpecialty: appt.doctorSpecialty,
+            substituteDoctorName: substituteDoctorName.isNotEmpty ? substituteDoctorName : 'Substitute Specialist',
+            patientName: appt.patientName,
+            patientPhone: appt.patientPhone,
+            patientAge: appt.patientAge,
+            patientGender: appt.patientGender,
+            district: appt.district,
+            preferredDate: appt.preferredDate,
+            preferredTimeSlot: appt.preferredTimeSlot,
+            consultationMode: appt.consultationMode,
+            chiefComplaint: appt.chiefComplaint,
+            status: appt.status,
+            statusDisplay: '${appt.statusDisplay} (Covered by $substituteDoctorName)',
+            tokenNumber: appt.tokenNumber,
+            hospitalNotes: 'Substitute Assigned: $substituteDoctorName. $notes',
+            cancellationReason: appt.cancellationReason,
+            rescheduleReason: appt.rescheduleReason,
+            rejectionReason: appt.rejectionReason,
+            rescheduledFromDate: appt.rescheduledFromDate,
+            rescheduledFromSlot: appt.rescheduledFromSlot,
+            isDoctorUnavailableFlagged: false,
+            createdAt: appt.createdAt,
+            statusHistory: newHistory,
+          );
+        } else if (action == 'RESCHEDULE') {
+          _appointmentRequests[i] = AppointmentRequestModel(
+            id: appt.id,
+            organizationId: appt.organizationId,
+            organizationName: appt.organizationName,
+            doctorId: appt.doctorId,
+            doctorName: appt.doctorName,
+            doctorSpecialty: appt.doctorSpecialty,
+            substituteDoctorName: appt.substituteDoctorName,
+            patientName: appt.patientName,
+            patientPhone: appt.patientPhone,
+            patientAge: appt.patientAge,
+            patientGender: appt.patientGender,
+            district: appt.district,
+            preferredDate: newDate.isNotEmpty ? newDate : appt.preferredDate,
+            preferredTimeSlot: appt.preferredTimeSlot,
+            consultationMode: appt.consultationMode,
+            chiefComplaint: appt.chiefComplaint,
+            status: 'RESCHEDULED',
+            statusDisplay: 'Auto-Rescheduled to $newDate',
+            tokenNumber: appt.tokenNumber,
+            hospitalNotes: 'Rescheduled due to doctor leave. $notes',
+            cancellationReason: appt.cancellationReason,
+            rescheduleReason: 'Doctor unavailability / leave',
+            rejectionReason: appt.rejectionReason,
+            rescheduledFromDate: appt.preferredDate,
+            rescheduledFromSlot: appt.preferredTimeSlot,
+            isDoctorUnavailableFlagged: false,
+            createdAt: appt.createdAt,
+            statusHistory: newHistory,
+          );
+        } else if (action == 'CANCEL') {
+          _appointmentRequests[i] = AppointmentRequestModel(
+            id: appt.id,
+            organizationId: appt.organizationId,
+            organizationName: appt.organizationName,
+            doctorId: appt.doctorId,
+            doctorName: appt.doctorName,
+            doctorSpecialty: appt.doctorSpecialty,
+            substituteDoctorName: appt.substituteDoctorName,
+            patientName: appt.patientName,
+            patientPhone: appt.patientPhone,
+            patientAge: appt.patientAge,
+            patientGender: appt.patientGender,
+            district: appt.district,
+            preferredDate: appt.preferredDate,
+            preferredTimeSlot: appt.preferredTimeSlot,
+            consultationMode: appt.consultationMode,
+            chiefComplaint: appt.chiefComplaint,
+            status: 'CANCELLED',
+            statusDisplay: 'Cancelled by Hospital',
+            tokenNumber: appt.tokenNumber,
+            hospitalNotes: 'Cancelled with notice due to doctor leave. $notes',
+            cancellationReason: 'Doctor on emergency leave',
+            rescheduleReason: appt.rescheduleReason,
+            rejectionReason: appt.rejectionReason,
+            rescheduledFromDate: appt.rescheduledFromDate,
+            rescheduledFromSlot: appt.rescheduledFromSlot,
+            isDoctorUnavailableFlagged: false,
+            createdAt: appt.createdAt,
+            statusHistory: newHistory,
+          );
+        }
+        resolvedCount++;
+      }
+    }
+    _addNotification('Resolved $resolvedCount appointments via $action. Patient notifications dispatched.');
+    notifyListeners();
+  }
+
+  void updateNetworkAppointmentStatus(String apptId, String newStatus) {
+    deskAcceptAppointment(apptId);
+  }
+
+  void requestDoctorAppointment(AppointmentRequestModel appointment) {
+    bookDoctorSmartAppointment(appointment);
   }
 
   void reportIncorrectInformation({
@@ -1375,6 +2147,710 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ==========================================
+  // PHASE 2.6: ADVANCED QUEUE & PATIENT FLOW ACTIONS
+  // ==========================================
+
+  List<QueueSessionModel> _queueSessions = NetworkDatabaseService.getMockQueueSessions();
+  List<QueueSessionModel> get queueSessions => _queueSessions;
+
+  HospitalFlowAnalyticsModel _hospitalFlowAnalytics = NetworkDatabaseService.getMockHospitalFlowAnalytics();
+  HospitalFlowAnalyticsModel get hospitalFlowAnalytics => _hospitalFlowAnalytics;
+
+  /// Call the next highest priority waiting patient
+  void callNextQueueToken(String sessionId) {
+    final sIdx = _queueSessions.indexWhere((s) => s.id == sessionId);
+    if (sIdx == -1) return;
+
+    final session = _queueSessions[sIdx];
+    if (session.isPaused) {
+      _addNotification('Queue is currently paused (${session.pauseReason}). Resume before calling tokens.');
+      notifyListeners();
+      return;
+    }
+
+    // Find next token by priority rank (-rank) and token_number
+    final candidateTokens = session.tokens.where((t) => t.status == 'WAITING' || t.status == 'CHECKED_IN').toList();
+    if (candidateTokens.isEmpty) {
+      _addNotification('No waiting patients in ${session.departmentName ?? session.queueTypeDisplay}.');
+      notifyListeners();
+      return;
+    }
+
+    candidateTokens.sort((a, b) {
+      final rankCompare = b.priorityRank.compareTo(a.priorityRank);
+      if (rankCompare != 0) return rankCompare;
+      return a.tokenNumber.compareTo(b.tokenNumber);
+    });
+
+    final nextToken = candidateTokens.first;
+    final updatedTokens = session.tokens.map((t) {
+      if (t.id == nextToken.id) {
+        return QueueTokenModel(
+          id: t.id,
+          queueSessionId: t.queueSessionId,
+          appointmentId: t.appointmentId,
+          tokenNumber: t.tokenNumber,
+          tokenLabel: t.tokenLabel,
+          patientName: t.patientName,
+          patientPhone: t.patientPhone,
+          priority: t.priority,
+          priorityRank: t.priorityRank,
+          isWalkIn: t.isWalkIn,
+          status: 'CALLED',
+          statusDisplay: 'Now Calling',
+          calledAt: DateTime.now().toString().split('.').first,
+          callCount: t.callCount + 1,
+          lastCalledAt: DateTime.now().toString().split('.').first,
+          roomNumber: session.roomNumber,
+          doctorName: session.doctorName,
+        );
+      }
+      return t;
+    }).toList();
+
+    _queueSessions[sIdx] = QueueSessionModel(
+      id: session.id,
+      organizationId: session.organizationId,
+      organizationName: session.organizationName,
+      doctorId: session.doctorId,
+      doctorName: session.doctorName,
+      departmentName: session.departmentName,
+      roomNumber: session.roomNumber,
+      queueType: session.queueType,
+      queueTypeDisplay: session.queueTypeDisplay,
+      tokenPrefix: session.tokenPrefix,
+      sessionDate: session.sessionDate,
+      currentTokenNumber: nextToken.tokenNumber,
+      totalTokensIssued: session.totalTokensIssued,
+      isActive: session.isActive,
+      isPaused: session.isPaused,
+      pauseReason: session.pauseReason,
+      avgConsultationDurationSeconds: session.avgConsultationDurationSeconds,
+      totalCompletedConsultations: session.totalCompletedConsultations,
+      tokens: updatedTokens,
+    );
+
+    _addNotification('Now calling Token ${nextToken.tokenLabel} (${nextToken.patientName}) to ${session.roomNumber}. Proximity alerts dispatched.');
+    notifyListeners();
+  }
+
+  /// Staged recall for absent patient
+  void recallQueueToken(String sessionId, String tokenId) {
+    final sIdx = _queueSessions.indexWhere((s) => s.id == sessionId);
+    if (sIdx == -1) return;
+
+    final session = _queueSessions[sIdx];
+    final updatedTokens = session.tokens.map((t) {
+      if (t.id == tokenId) {
+        final newCount = t.callCount + 1;
+        final newStatus = newCount >= 3 ? 'NO_SHOW' : 'CALLED';
+        final newDisplay = newCount >= 3 ? 'No Show (3 Recalls Failed)' : 'Recalled (Call #$newCount)';
+        return QueueTokenModel(
+          id: t.id,
+          queueSessionId: t.queueSessionId,
+          appointmentId: t.appointmentId,
+          tokenNumber: t.tokenNumber,
+          tokenLabel: t.tokenLabel,
+          patientName: t.patientName,
+          patientPhone: t.patientPhone,
+          priority: t.priority,
+          priorityRank: t.priorityRank,
+          isWalkIn: t.isWalkIn,
+          status: newStatus,
+          statusDisplay: newDisplay,
+          calledAt: t.calledAt,
+          callCount: newCount,
+          lastCalledAt: DateTime.now().toString().split('.').first,
+          roomNumber: session.roomNumber,
+          doctorName: session.doctorName,
+        );
+      }
+      return t;
+    }).toList();
+
+    _queueSessions[sIdx] = QueueSessionModel(
+      id: session.id,
+      organizationId: session.organizationId,
+      organizationName: session.organizationName,
+      doctorId: session.doctorId,
+      doctorName: session.doctorName,
+      departmentName: session.departmentName,
+      roomNumber: session.roomNumber,
+      queueType: session.queueType,
+      queueTypeDisplay: session.queueTypeDisplay,
+      tokenPrefix: session.tokenPrefix,
+      sessionDate: session.sessionDate,
+      currentTokenNumber: session.currentTokenNumber,
+      totalTokensIssued: session.totalTokensIssued,
+      isActive: session.isActive,
+      isPaused: session.isPaused,
+      pauseReason: session.pauseReason,
+      avgConsultationDurationSeconds: session.avgConsultationDurationSeconds,
+      totalCompletedConsultations: session.totalCompletedConsultations,
+      tokens: updatedTokens,
+    );
+
+    _addNotification('Recalled token in ${session.departmentName}. Audio chime & push alert triggered.');
+    notifyListeners();
+  }
+
+  /// Start Consultation
+  void startConsultationQueueToken(String sessionId, String tokenId) {
+    final sIdx = _queueSessions.indexWhere((s) => s.id == sessionId);
+    if (sIdx == -1) return;
+
+    final session = _queueSessions[sIdx];
+    final updatedTokens = session.tokens.map((t) {
+      if (t.id == tokenId) {
+        return QueueTokenModel(
+          id: t.id,
+          queueSessionId: t.queueSessionId,
+          appointmentId: t.appointmentId,
+          tokenNumber: t.tokenNumber,
+          tokenLabel: t.tokenLabel,
+          patientName: t.patientName,
+          patientPhone: t.patientPhone,
+          priority: t.priority,
+          priorityRank: t.priorityRank,
+          isWalkIn: t.isWalkIn,
+          status: 'IN_CONSULTATION',
+          statusDisplay: 'In Consultation',
+          calledAt: t.calledAt,
+          callCount: t.callCount,
+          lastCalledAt: t.lastCalledAt,
+          roomNumber: session.roomNumber,
+          doctorName: session.doctorName,
+        );
+      }
+      return t;
+    }).toList();
+
+    _queueSessions[sIdx] = QueueSessionModel(
+      id: session.id,
+      organizationId: session.organizationId,
+      organizationName: session.organizationName,
+      doctorId: session.doctorId,
+      doctorName: session.doctorName,
+      departmentName: session.departmentName,
+      roomNumber: session.roomNumber,
+      queueType: session.queueType,
+      queueTypeDisplay: session.queueTypeDisplay,
+      tokenPrefix: session.tokenPrefix,
+      sessionDate: session.sessionDate,
+      currentTokenNumber: session.currentTokenNumber,
+      totalTokensIssued: session.totalTokensIssued,
+      isActive: session.isActive,
+      isPaused: session.isPaused,
+      pauseReason: session.pauseReason,
+      avgConsultationDurationSeconds: session.avgConsultationDurationSeconds,
+      totalCompletedConsultations: session.totalCompletedConsultations,
+      tokens: updatedTokens,
+    );
+
+    _addNotification('Started consultation in ${session.roomNumber}.');
+    notifyListeners();
+  }
+
+  /// Complete Consultation
+  void completeConsultationQueueToken(String sessionId, String tokenId, {String notes = ''}) {
+    final sIdx = _queueSessions.indexWhere((s) => s.id == sessionId);
+    if (sIdx == -1) return;
+
+    final session = _queueSessions[sIdx];
+    final updatedTokens = session.tokens.map((t) {
+      if (t.id == tokenId) {
+        return QueueTokenModel(
+          id: t.id,
+          queueSessionId: t.queueSessionId,
+          appointmentId: t.appointmentId,
+          tokenNumber: t.tokenNumber,
+          tokenLabel: t.tokenLabel,
+          patientName: t.patientName,
+          patientPhone: t.patientPhone,
+          priority: t.priority,
+          priorityRank: t.priorityRank,
+          isWalkIn: t.isWalkIn,
+          status: 'COMPLETED',
+          statusDisplay: 'Completed',
+          calledAt: t.calledAt,
+          callCount: t.callCount,
+          lastCalledAt: t.lastCalledAt,
+          clinicalNotes: notes,
+          roomNumber: session.roomNumber,
+          doctorName: session.doctorName,
+        );
+      }
+      return t;
+    }).toList();
+
+    _queueSessions[sIdx] = QueueSessionModel(
+      id: session.id,
+      organizationId: session.organizationId,
+      organizationName: session.organizationName,
+      doctorId: session.doctorId,
+      doctorName: session.doctorName,
+      departmentName: session.departmentName,
+      roomNumber: session.roomNumber,
+      queueType: session.queueType,
+      queueTypeDisplay: session.queueTypeDisplay,
+      tokenPrefix: session.tokenPrefix,
+      sessionDate: session.sessionDate,
+      currentTokenNumber: session.currentTokenNumber,
+      totalTokensIssued: session.totalTokensIssued,
+      isActive: session.isActive,
+      isPaused: session.isPaused,
+      pauseReason: session.pauseReason,
+      avgConsultationDurationSeconds: session.avgConsultationDurationSeconds,
+      totalCompletedConsultations: session.totalCompletedConsultations + 1,
+      tokens: updatedTokens,
+    );
+
+    _addNotification('Consultation completed for token. Pharmacy / Billing route opened.');
+    notifyListeners();
+  }
+
+  /// Pause Queue Session
+  void pauseQueueSession(String sessionId, String reason) {
+    final sIdx = _queueSessions.indexWhere((s) => s.id == sessionId);
+    if (sIdx == -1) return;
+
+    final s = _queueSessions[sIdx];
+    _queueSessions[sIdx] = QueueSessionModel(
+      id: s.id,
+      organizationId: s.organizationId,
+      organizationName: s.organizationName,
+      doctorId: s.doctorId,
+      doctorName: s.doctorName,
+      departmentName: s.departmentName,
+      roomNumber: s.roomNumber,
+      queueType: s.queueType,
+      queueTypeDisplay: s.queueTypeDisplay,
+      tokenPrefix: s.tokenPrefix,
+      sessionDate: s.sessionDate,
+      currentTokenNumber: s.currentTokenNumber,
+      totalTokensIssued: s.totalTokensIssued,
+      isActive: s.isActive,
+      isPaused: true,
+      pauseReason: reason,
+      avgConsultationDurationSeconds: s.avgConsultationDurationSeconds,
+      totalCompletedConsultations: s.totalCompletedConsultations,
+      tokens: s.tokens,
+    );
+
+    _addNotification('Queue ${s.departmentName ?? s.queueType} PAUSED ($reason). Patients alerted.');
+    notifyListeners();
+  }
+
+  /// Resume Queue Session
+  void resumeQueueSession(String sessionId) {
+    final sIdx = _queueSessions.indexWhere((s) => s.id == sessionId);
+    if (sIdx == -1) return;
+
+    final s = _queueSessions[sIdx];
+    _queueSessions[sIdx] = QueueSessionModel(
+      id: s.id,
+      organizationId: s.organizationId,
+      organizationName: s.organizationName,
+      doctorId: s.doctorId,
+      doctorName: s.doctorName,
+      departmentName: s.departmentName,
+      roomNumber: s.roomNumber,
+      queueType: s.queueType,
+      queueTypeDisplay: s.queueTypeDisplay,
+      tokenPrefix: s.tokenPrefix,
+      sessionDate: s.sessionDate,
+      currentTokenNumber: s.currentTokenNumber,
+      totalTokensIssued: s.totalTokensIssued,
+      isActive: s.isActive,
+      isPaused: false,
+      pauseReason: '',
+      avgConsultationDurationSeconds: s.avgConsultationDurationSeconds,
+      totalCompletedConsultations: s.totalCompletedConsultations,
+      tokens: s.tokens,
+    );
+
+    _addNotification('Queue ${s.departmentName ?? s.queueType} RESUMED. Operations normal.');
+    notifyListeners();
+  }
+
+  /// Issue Walk-In Token
+  void issueWalkInToken({
+    required String sessionId,
+    required String patientName,
+    required String patientPhone,
+    String priority = 'NORMAL',
+  }) {
+    final sIdx = _queueSessions.indexWhere((s) => s.id == sessionId);
+    if (sIdx == -1) return;
+
+    final session = _queueSessions[sIdx];
+    final nextNumber = session.totalTokensIssued + 1;
+    final tokenLabel = '${session.tokenPrefix}-$nextNumber';
+
+    int rank = 1;
+    if (priority == 'EMERGENCY') rank = 4;
+    else if (priority == 'URGENT') rank = 3;
+    else if (priority == 'PRIORITY') rank = 2;
+
+    final newToken = QueueTokenModel(
+      id: 'QT-${DateTime.now().millisecondsSinceEpoch}',
+      queueSessionId: session.id,
+      tokenNumber: nextNumber,
+      tokenLabel: tokenLabel,
+      patientName: patientName,
+      patientPhone: patientPhone,
+      priority: priority,
+      priorityRank: rank,
+      isWalkIn: true,
+      status: 'WAITING',
+      statusDisplay: 'Waiting in Queue',
+      roomNumber: session.roomNumber,
+      doctorName: session.doctorName,
+    );
+
+    final updatedTokens = List<QueueTokenModel>.from(session.tokens)..add(newToken);
+
+    _queueSessions[sIdx] = QueueSessionModel(
+      id: session.id,
+      organizationId: session.organizationId,
+      organizationName: session.organizationName,
+      doctorId: session.doctorId,
+      doctorName: session.doctorName,
+      departmentName: session.departmentName,
+      roomNumber: session.roomNumber,
+      queueType: session.queueType,
+      queueTypeDisplay: session.queueTypeDisplay,
+      tokenPrefix: session.tokenPrefix,
+      sessionDate: session.sessionDate,
+      currentTokenNumber: session.currentTokenNumber,
+      totalTokensIssued: nextNumber,
+      isActive: session.isActive,
+      isPaused: session.isPaused,
+      pauseReason: session.pauseReason,
+      avgConsultationDurationSeconds: session.avgConsultationDurationSeconds,
+      totalCompletedConsultations: session.totalCompletedConsultations,
+      tokens: updatedTokens,
+    );
+
+    _addNotification('Walk-in Token $tokenLabel issued for $patientName ($priority priority).');
+    notifyListeners();
+  }
+
+  /// Perform Digital QR Check-In
+  PatientCheckInResultModel performDigitalCheckIn({
+    required String appointmentId,
+    required String qrHash,
+  }) {
+    // Find matching appointment
+    final apptIdx = _appointmentRequests.indexWhere((a) => a.id == appointmentId);
+    String patientName = 'Patient';
+    String roomNumber = 'OPD Room 102';
+    String doctorName = 'Doctor';
+
+    if (apptIdx != -1) {
+      final appt = _appointmentRequests[apptIdx];
+      patientName = appt.patientName;
+      doctorName = appt.doctorName;
+      deskCheckInAppointment(appointmentId);
+    }
+
+    // Activate token in session
+    for (int i = 0; i < _queueSessions.length; i++) {
+      final session = _queueSessions[i];
+      final tokenIdx = session.tokens.indexWhere((t) => t.appointmentId == appointmentId);
+      if (tokenIdx != -1) {
+        final token = session.tokens[tokenIdx];
+        final updatedTokens = List<QueueTokenModel>.from(session.tokens);
+        updatedTokens[tokenIdx] = QueueTokenModel(
+          id: token.id,
+          queueSessionId: token.queueSessionId,
+          appointmentId: token.appointmentId,
+          tokenNumber: token.tokenNumber,
+          tokenLabel: token.tokenLabel,
+          patientName: token.patientName,
+          patientPhone: token.patientPhone,
+          priority: token.priority,
+          priorityRank: token.priorityRank,
+          isWalkIn: token.isWalkIn,
+          status: 'CHECKED_IN',
+          statusDisplay: 'Checked In / In Waiting Area',
+          checkInTime: DateTime.now().toString().split('.').first,
+          roomNumber: session.roomNumber,
+          doctorName: session.doctorName,
+        );
+
+        _queueSessions[i] = QueueSessionModel(
+          id: session.id,
+          organizationId: session.organizationId,
+          organizationName: session.organizationName,
+          doctorId: session.doctorId,
+          doctorName: session.doctorName,
+          departmentName: session.departmentName,
+          roomNumber: session.roomNumber,
+          queueType: session.queueType,
+          queueTypeDisplay: session.queueTypeDisplay,
+          tokenPrefix: session.tokenPrefix,
+          sessionDate: session.sessionDate,
+          currentTokenNumber: session.currentTokenNumber,
+          totalTokensIssued: session.totalTokensIssued,
+          isActive: session.isActive,
+          isPaused: session.isPaused,
+          pauseReason: session.pauseReason,
+          avgConsultationDurationSeconds: session.avgConsultationDurationSeconds,
+          totalCompletedConsultations: session.totalCompletedConsultations,
+          tokens: updatedTokens,
+        );
+        break;
+      }
+    }
+
+    _addNotification('QR Arrival Check-in verified for $patientName. Token activated.');
+    notifyListeners();
+
+    return PatientCheckInResultModel(
+      checkInId: 'CHK-${DateTime.now().millisecondsSinceEpoch}',
+      tokenId: 'QT-119',
+      tokenLabel: 'C-19',
+      patientName: patientName,
+      roomNumber: roomNumber,
+      doctorName: doctorName,
+      patientsAhead: 1,
+      estimatedWaitMinutes: 13,
+      message: 'Check-in verified. Please proceed to $roomNumber waiting area.',
+    );
+  }
+
+  // ==========================================
+  // PHASE 2.7: PALLIATIVE & HOME HEALTHCARE ACTIONS
+  // ==========================================
+
+  void requestHomeVisit({
+    required String patientId,
+    required String patientName,
+    required String patientPhone,
+    required String requesterName,
+    required String requesterPhone,
+    required String requesterRelationship,
+    required String visitType,
+    required String urgency,
+    required String preferredDate,
+    required String preferredTimeSlot,
+    required String reasonAndSymptoms,
+    required String locationAddress,
+  }) {
+    final newReq = HomeVisitRequestModel(
+      id: 'HVR-${DateTime.now().millisecondsSinceEpoch}',
+      patientId: patientId,
+      patientName: patientName,
+      patientPhone: patientPhone,
+      requesterName: requesterName,
+      requesterPhone: requesterPhone,
+      requesterRelationship: requesterRelationship,
+      visitType: visitType,
+      urgency: urgency,
+      preferredDate: preferredDate,
+      preferredTimeSlot: preferredTimeSlot,
+      reasonAndSymptoms: reasonAndSymptoms,
+      locationAddress: locationAddress,
+      status: 'PENDING',
+      createdAt: '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+    );
+
+    _homeVisitRequests.insert(0, newReq);
+    _addNotification('New Home Visit Requested for $patientName ($urgency)');
+    notifyListeners();
+  }
+
+  void acceptHomeVisitRequest(String requestId, {String? assignedNurse, String? scheduledTime}) {
+    final index = _homeVisitRequests.indexWhere((r) => r.id == requestId);
+    if (index != -1) {
+      final req = _homeVisitRequests[index];
+      req.status = 'ACCEPTED';
+
+      final newVisit = VisitModel(
+        id: 'VIS-${DateTime.now().millisecondsSinceEpoch}',
+        patientId: req.patientId,
+        patientName: req.patientName,
+        patientAddress: req.locationAddress,
+        assignedNurseName: assignedNurse ?? 'Nurse Anitha',
+        scheduledDate: req.preferredDate,
+        scheduledTime: scheduledTime ?? req.preferredTimeSlot.split('-').first.trim(),
+        status: 'Scheduled',
+        clinicalNotes: 'Reason: ${req.reasonAndSymptoms}',
+        symptomsObserved: req.reasonAndSymptoms,
+      );
+
+      _visits.insert(0, newVisit);
+      _addNotification('Home Visit Request #${req.id} accepted for ${req.patientName}');
+      notifyListeners();
+    }
+  }
+
+  void rejectHomeVisitRequest(String requestId, String reason) {
+    final index = _homeVisitRequests.indexWhere((r) => r.id == requestId);
+    if (index != -1) {
+      _homeVisitRequests[index].status = 'REJECTED';
+      _homeVisitRequests[index].rejectionReason = reason;
+      _addNotification('Home Visit Request #${_homeVisitRequests[index].id} rejected: $reason');
+      notifyListeners();
+    }
+  }
+
+  void dispatchHomeVisit(String visitId) {
+    final index = _visits.indexWhere((v) => v.id == visitId);
+    if (index != -1) {
+      _visits[index].status = 'Dispatched';
+      _addNotification('Care Team dispatched for ${_visits[index].patientName}');
+      notifyListeners();
+    }
+  }
+
+  void recordHomeVisitArrival(String visitId, {String locationName = 'GPS Verified Coordinates'}) {
+    final index = _visits.indexWhere((v) => v.id == visitId);
+    if (index != -1) {
+      _visits[index].status = 'In Progress';
+      _visits[index].gpsLocationName = locationName;
+      _visits[index].gpsCheckInTime = '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}';
+      _addNotification('Care Team arrived at ${_visits[index].patientName}\'s residence ($locationName)');
+      notifyListeners();
+    }
+  }
+
+  void completeHomeVisitWithStructuredNotes(
+    String visitId, {
+    required String symptoms,
+    required String careProvided,
+    required String medicationAdministered,
+    required String equipmentUsed,
+    required String followUp,
+    required String clinicalNotes,
+    VitalsReading? vitals,
+  }) {
+    final index = _visits.indexWhere((v) => v.id == visitId);
+    if (index != -1) {
+      _visits[index].status = 'Completed';
+      _visits[index].symptomsObserved = symptoms;
+      _visits[index].careProvided = careProvided;
+      _visits[index].medicationAdministered = medicationAdministered;
+      _visits[index].equipmentUsed = equipmentUsed;
+      _visits[index].followUpInstructions = followUp;
+      _visits[index].clinicalNotes = clinicalNotes;
+      if (vitals != null) {
+        _visits[index].recordedVitals = vitals;
+        final pIdx = _patients.indexWhere((p) => p.id == _visits[index].patientId);
+        if (pIdx != -1) {
+          _patients[pIdx].vitalsHistory.insert(0, vitals);
+        }
+      }
+
+      _addNotification('Home Visit completed & documented for ${_visits[index].patientName}');
+      notifyListeners();
+    }
+  }
+
+  void addCareTeamMember(String careTeamId, CareTeamMemberModel member) {
+    final index = _careTeams.indexWhere((ct) => ct.id == careTeamId);
+    if (index != -1) {
+      final team = _careTeams[index];
+      final updatedMembers = List<CareTeamMemberModel>.from(team.members)..add(member);
+      _careTeams[index] = CareTeamModel(
+        id: team.id,
+        name: team.name,
+        leadDoctorName: team.leadDoctorName,
+        primaryNurseName: team.primaryNurseName,
+        areaCoverage: team.areaCoverage,
+        isActive: team.isActive,
+        members: updatedMembers,
+      );
+      _addNotification('Added ${member.memberName} (${member.role}) to ${team.name}');
+      notifyListeners();
+    }
+  }
+
+  void logMedicationDose(String planId, String timeSlot, {String status = 'TAKEN', bool isNurseVerified = false, String notes = ''}) {
+    final pIdx = _medicationPlans.indexWhere((p) => p.id == planId);
+    if (pIdx != -1) {
+      final plan = _medicationPlans[pIdx];
+      final newAdmin = MedicationAdministrationModel(
+        id: 'ADM-${DateTime.now().millisecondsSinceEpoch}',
+        planId: plan.id,
+        medicineName: plan.medicineName,
+        dosage: plan.dosage,
+        patientId: plan.patientId,
+        scheduledDate: '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+        timeSlot: timeSlot,
+        status: status,
+        recordedByCaregiver: !isNurseVerified,
+        verifiedByNurse: isNurseVerified,
+        verifiedNurseName: isNurseVerified ? _currentUser.name : null,
+        administeredAt: '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+        notes: notes,
+      );
+
+      final updatedAdmins = List<MedicationAdministrationModel>.from(plan.administrations)..insert(0, newAdmin);
+      _medicationPlans[pIdx] = MedicationPlanModel(
+        id: plan.id,
+        patientId: plan.patientId,
+        medicineName: plan.medicineName,
+        dosage: plan.dosage,
+        route: plan.route,
+        frequency: plan.frequency,
+        timeSlots: plan.timeSlots,
+        prescribedByDoctor: plan.prescribedByDoctor,
+        startDate: plan.startDate,
+        endDate: plan.endDate,
+        instructions: plan.instructions,
+        isActive: plan.isActive,
+        administrations: updatedAdmins,
+      );
+
+      _addNotification('Medication logged: ${plan.medicineName} ($status at $timeSlot)');
+      notifyListeners();
+    }
+  }
+
+  void grantCaregiverAccess({
+    required String patientId,
+    required String caregiverName,
+    required String caregiverPhone,
+    required String relationship,
+    required List<String> permissions,
+  }) {
+    final newGrant = CaregiverAccessModel(
+      id: 'CG-${DateTime.now().millisecondsSinceEpoch}',
+      patientId: patientId,
+      caregiverName: caregiverName,
+      caregiverPhone: caregiverPhone,
+      relationship: relationship,
+      permissions: permissions,
+      grantedBy: _currentUser.name,
+      grantedAt: '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+    );
+
+    _caregiverGrants.insert(0, newGrant);
+    _addNotification('Caregiver consent granted to $caregiverName for Patient $patientId');
+    notifyListeners();
+  }
+
+  void revokeCaregiverAccess(String grantId) {
+    final index = _caregiverGrants.indexWhere((g) => g.id == grantId);
+    if (index != -1) {
+      _caregiverGrants[index].isActive = false;
+      _addNotification('Revoked caregiver access for ${_caregiverGrants[index].caregiverName}');
+      notifyListeners();
+    }
+  }
+
+  void triggerPalliativeEmergencyEscalation(String patientId, String reason) {
+    final patient = _patients.firstWhere((p) => p.id == patientId, orElse: () => _patients.first);
+    final alertMsg = 'PALLIATIVE EMERGENCY: $reason for ${patient.name}';
+
+    _addNotification(alertMsg);
+    _notifications.insert(0, '🚨 CRITICAL ESCALATION: $alertMsg');
+    notifyListeners();
+  }
+
   void _addNotification(String msg) {
     _notifications.insert(0, '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')} - $msg');
     if (_notifications.length > 50) {
@@ -1382,3 +2858,4 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 }
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/models/user_model.dart';
 import '../../../core/services/ai_healthcare_service.dart';
 import '../../../core/state/app_state_provider.dart';
 
@@ -14,18 +15,48 @@ class AiAssistantScreen extends StatefulWidget {
 
 class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final _queryCtrl = TextEditingController();
-  final List<Map<String, String>> _messages = [
-    {
-      'sender': 'ai',
-      'text': 'Namaskaram! I am your CareLink Kerala AI Assistant. I can summarize patient profiles, convert voice notes into clinical drafts, evaluate patient risk scores, or search dashboard records in natural Malayalam/English.'
-    }
-  ];
+  late final List<Map<String, String>> _messages;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = widget.state.currentUser;
+    final isPatient = user.role.isPatientOrFamily;
+
+    _messages = [
+      {
+        'sender': 'ai',
+        'text': isPatient
+            ? 'Namaskaram ${user.name}! I am your personal CareLink Kerala health companion. I can assist you with your upcoming OPD appointment tokens, daily medication schedule, home palliative care guidance, or emergency support.'
+            : 'Namaskaram ${user.name}! I am your CareLink Kerala clinical decision assistant. I can summarize patient profiles, triage high-risk vitals, monitor pharmacy stock levels, and review palliative protocols.'
+      }
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final user = widget.state.currentUser;
+    final isPatient = user.role.isPatientOrFamily;
+
+    final presetChips = isPatient
+        ? [
+            'My Appointment & Token 🎫',
+            'My Medication Schedule 💊',
+            'How to Relieve Pain at Home? 🏠',
+            'Request Nurse Home Visit 🩺',
+            'Emergency Ambulance 🚑',
+          ]
+        : [
+            'Show Critical Patients 🚨',
+            'Check Low Stock Medicines ⚠️',
+            'Summarize Patient PAT-101 📋',
+            'Category A Bedridden Count 🛏️',
+            'Palliative Pain Protocols 💊',
+          ];
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Healthcare Assistant'),
+        title: Text(isPatient ? 'Personal Health Assistant' : 'AI Clinical Decision Assistant'),
       ),
       body: Column(
         children: [
@@ -36,18 +67,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: [
-                  'Show Critical Patients',
-                  'Check Low Stock Medicines',
-                  'Summarize Patient PAT-101',
-                  'Category A Bedridden Count',
-                ].map((prompt) => Padding(
+                children: presetChips.map((prompt) => Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: ActionChip(
-                        label: Text(prompt, style: const TextStyle(fontSize: 12)),
+                        label: Text(prompt, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                         backgroundColor: AppColors.surface,
                         onPressed: () {
-                          _queryCtrl.text = prompt;
+                          _queryCtrl.text = prompt.replaceAll(RegExp(r'[\u{1F300}-\u{1F9FF}]', unicode: true), '').trim();
                           _handleSendQuery();
                         },
                       ),
@@ -66,7 +92,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 return Align(
                   alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -77,7 +103,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                     child: Text(
                       _messages[i]['text']!,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13.5,
                         color: isUser ? Colors.white : AppColors.textPrimary,
                         height: 1.4,
                       ),
@@ -97,8 +123,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 Expanded(
                   child: TextField(
                     controller: _queryCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Ask in English or Malayalam...',
+                    decoration: InputDecoration(
+                      hintText: isPatient ? 'Ask about your token, medicine, home care...' : 'Ask clinical query in English or Malayalam...',
                     ),
                     onSubmitted: (_) => _handleSendQuery(),
                   ),
@@ -123,13 +149,16 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     setState(() {
       _messages.add({'sender': 'user', 'text': text});
       _queryCtrl.clear();
-      _messages.add({'sender': 'ai', 'text': 'Thinking with Gemini AI...'});
+      _messages.add({'sender': 'ai', 'text': 'Thinking with CareLink AI...'});
     });
 
     final aiResponse = await AiHealthcareService.processNaturalLanguageQueryAsync(
-      text,
-      widget.state.patients,
-      widget.state.medicines,
+      query: text,
+      patients: widget.state.patients,
+      medicines: widget.state.medicines,
+      currentUser: widget.state.currentUser,
+      appointments: widget.state.appointments,
+      medicationPlans: widget.state.medicationPlans,
     );
 
     if (mounted) {

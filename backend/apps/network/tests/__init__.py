@@ -1,1 +1,1 @@
-# Automated Test Suite for CareLink Network
+# backend/apps/network/tests package marker

@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from apps.authentication.models import UserRole
 from apps.authentication.permissions import IsSameOrganizationTenant
 from apps.organizations.models import Organization
+from apps.authentication.services.email_service import HealthcareEmailService
 from .models import Donation, MedicalFundraiser, DonationStatus
 
 class DonationSerializer(serializers.ModelSerializer):
@@ -152,6 +153,18 @@ class VerifyRazorpayPaymentView(APIView):
                     fundraiser.status = 'Target Reached'
                 fundraiser.save()
 
+        donor_email = request.data.get('donor_email', '').strip()
+        dispatch_info = {'status': 'skipped'}
+        if donor_email and '@' in donor_email:
+            dispatch_info = HealthcareEmailService.send_donation_receipt_email(
+                recipient_email=donor_email,
+                donor_name=donation.donor_name,
+                amount=amount,
+                transaction_id=donation.transaction_id,
+                campaign_title=category,
+                hospital_name=org.name if org else 'CareLink Kerala'
+            )
+
         return Response({
             'status': 'success',
             'message': 'Payment successfully verified and donation receipt generated.',
@@ -161,6 +174,7 @@ class VerifyRazorpayPaymentView(APIView):
             'donor_name': donation.donor_name,
             'tax_exemption_clause': 'Eligible for 50% Tax Exemption under Section 80G of Income Tax Act 1961.',
             'organization_name': org.name if org else 'CareLink Kerala',
+            'email_dispatch': dispatch_info,
         }, status=status.HTTP_201_CREATED)
 
 

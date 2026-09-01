@@ -65,4 +65,10 @@ class AppColors {
   static const Color darkDangerSurface = Color(0xFF3B1219);
   static const Color darkWarningSurface = Color(0xFF3B2A0F);
   static const Color darkInfoSurface = Color(0xFF07263F);
+
+  // Common Theme Aliases
+  static const Color emerald = Color(0xFF34D399);
+  static const Color emeraldLight = Color(0xFF6EE7B7);
+  static const Color secondary = Color(0xFF00BFA6);
+  static const Color primary = Color(0xFF0A4D8C);
 }

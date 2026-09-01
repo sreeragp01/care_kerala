@@ -422,4 +422,505 @@ class NetworkDatabaseService {
       ),
     ];
   }
+
+  static List<AppointmentRequestModel> getInitialAppointmentRequests() {
+    final now = DateTime.now();
+    final todayStr = now.toString().split(' ').first;
+    final tomorrowStr = now.add(const Duration(days: 1)).toString().split(' ').first;
+    final upcomingStr = now.add(const Duration(days: 3)).toString().split(' ').first;
+    final pastStr = now.subtract(const Duration(days: 5)).toString().split(' ').first;
+    final cancelledStr = now.subtract(const Duration(days: 2)).toString().split(' ').first;
+
+    return [
+      // 1. Today's Confirmed Consultation (Check-In Available / Queue Token A-18)
+      AppointmentRequestModel(
+        id: 'APT-101',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-101',
+        doctorName: 'Dr. Suresh Kumar MD',
+        doctorSpecialty: 'Palliative & Pain Medicine',
+        patientName: 'Karthyayani Amma',
+        patientPhone: '+91 98470 12345',
+        patientAge: 74,
+        patientGender: 'Female',
+        district: 'Kozhikode',
+        preferredDate: todayStr,
+        preferredTimeSlot: '10:00 AM - 10:20 AM',
+        consultationMode: 'In-Person Hospital OPD',
+        chiefComplaint: 'Follow-up for chronic neuropathic spine pain & medication refill review',
+        status: 'CONFIRMED',
+        statusDisplay: 'Confirmed & Token Issued',
+        tokenNumber: 'A-18',
+        hospitalNotes: 'Token A-18 issued. Check-in counter at Palliative OPD Wing Room 101.',
+        createdAt: '01 Sep 2026',
+        statusHistory: [
+          AppointmentStatusHistoryModel(id: 'H-1', fromStatus: 'NONE', toStatus: 'REQUESTED', changedByUsername: 'Patient (CareLink App)', notes: 'Booked via smart slot scheduler', createdAt: '2026-08-30 10:15'),
+          AppointmentStatusHistoryModel(id: 'H-2', fromStatus: 'REQUESTED', toStatus: 'ACCEPTED', changedByUsername: 'Sr. Anitha (Reception Desk)', notes: 'Slot confirmed for Room 101', createdAt: '2026-08-30 11:20'),
+          AppointmentStatusHistoryModel(id: 'H-3', fromStatus: 'ACCEPTED', toStatus: 'CONFIRMED', changedByUsername: 'Automated Token Engine', notes: 'Issued Token A-18 with 24h prior SMS notification', createdAt: '2026-08-31 09:00'),
+        ],
+      ),
+
+      // 2. Pending Request from Patient
+      AppointmentRequestModel(
+        id: 'APT-102',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-103',
+        doctorName: 'Dr. Anil Kumar DM',
+        doctorSpecialty: 'Cardiology',
+        patientName: 'Vaidyanathan Nair',
+        patientPhone: '+91 98470 54321',
+        patientAge: 68,
+        patientGender: 'Male',
+        district: 'Kozhikode',
+        preferredDate: tomorrowStr,
+        preferredTimeSlot: '04:20 PM - 04:40 PM',
+        consultationMode: 'In-Person Hospital OPD',
+        chiefComplaint: 'Post-angioplasty routine checkup and blood pressure fluctuation',
+        status: 'REQUESTED',
+        statusDisplay: 'Pending Hospital Acceptance',
+        tokenNumber: 'Pending',
+        createdAt: '01 Sep 2026',
+        statusHistory: [
+          AppointmentStatusHistoryModel(id: 'H-4', fromStatus: 'NONE', toStatus: 'REQUESTED', changedByUsername: 'Patient', notes: 'Appointment requested online', createdAt: '2026-09-01 08:30'),
+        ],
+      ),
+
+      // 3. Upcoming Confirmed Appointment
+      AppointmentRequestModel(
+        id: 'APT-103',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-102',
+        doctorName: 'Dr. Priya Varma MD',
+        doctorSpecialty: 'Medical & Surgical Oncology',
+        patientName: 'Fatima Zahra',
+        patientPhone: '+91 97440 22334',
+        patientAge: 52,
+        patientGender: 'Female',
+        district: 'Kozhikode',
+        preferredDate: upcomingStr,
+        preferredTimeSlot: '11:00 AM - 11:20 AM',
+        consultationMode: 'In-Person Hospital OPD',
+        chiefComplaint: 'Chemotherapy Cycle 4 review & CBC blood test discussion',
+        status: 'ACCEPTED',
+        statusDisplay: 'Accepted by Hospital Desk',
+        tokenNumber: 'B-04',
+        createdAt: '31 Aug 2026',
+      ),
+
+      // 4. Past Completed Consultation
+      AppointmentRequestModel(
+        id: 'APT-104',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-101',
+        doctorName: 'Dr. Suresh Kumar MD',
+        doctorSpecialty: 'Palliative & Pain Medicine',
+        patientName: 'Karthyayani Amma',
+        patientPhone: '+91 98470 12345',
+        patientAge: 74,
+        patientGender: 'Female',
+        district: 'Kozhikode',
+        preferredDate: pastStr,
+        preferredTimeSlot: '11:30 AM - 12:00 PM',
+        consultationMode: 'In-Person Hospital OPD',
+        chiefComplaint: 'Severe knee pain and immobility',
+        status: 'COMPLETED',
+        statusDisplay: 'Consultation Completed',
+        tokenNumber: 'A-09',
+        hospitalNotes: 'Prescribed Gabapentin 300mg and advised gentle home physiotherapy.',
+        createdAt: '25 Aug 2026',
+        statusHistory: [
+          AppointmentStatusHistoryModel(id: 'H-5', fromStatus: 'CHECKED_IN', toStatus: 'IN_CONSULTATION', changedByUsername: 'Dr. Suresh Kumar', notes: 'Consultation initiated in Room 101', createdAt: '2026-08-26 11:35'),
+          AppointmentStatusHistoryModel(id: 'H-6', fromStatus: 'IN_CONSULTATION', toStatus: 'COMPLETED', changedByUsername: 'Dr. Suresh Kumar', notes: 'Rx generated and printed', createdAt: '2026-08-26 11:55'),
+        ],
+      ),
+
+      // 5. Cancelled Appointment
+      AppointmentRequestModel(
+        id: 'APT-105',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-103',
+        doctorName: 'Dr. Anil Kumar DM',
+        doctorSpecialty: 'Cardiology',
+        patientName: 'George Joseph',
+        patientPhone: '+91 94470 11999',
+        patientAge: 61,
+        patientGender: 'Male',
+        district: 'Kozhikode',
+        preferredDate: cancelledStr,
+        preferredTimeSlot: '05:00 PM - 05:20 PM',
+        consultationMode: 'In-Person Hospital OPD',
+        chiefComplaint: 'Routine ECG review',
+        status: 'CANCELLED',
+        statusDisplay: 'Cancelled',
+        tokenNumber: 'C-02',
+        cancellationReason: 'Patient had travel constraints due to heavy rain in Wayanad ghats.',
+        createdAt: '28 Aug 2026',
+      ),
+
+      // 6. No-Show Appointment
+      AppointmentRequestModel(
+        id: 'APT-106',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-102',
+        doctorName: 'Dr. Priya Varma MD',
+        doctorSpecialty: 'Medical & Surgical Oncology',
+        patientName: 'Raveendran Master',
+        patientPhone: '+91 98471 00223',
+        patientAge: 79,
+        patientGender: 'Male',
+        district: 'Kozhikode',
+        preferredDate: pastStr,
+        preferredTimeSlot: '10:40 AM - 11:00 AM',
+        consultationMode: 'In-Person Hospital OPD',
+        chiefComplaint: 'Post-op oncology dressing review',
+        status: 'NO_SHOW',
+        statusDisplay: 'Patient Did Not Arrive',
+        tokenNumber: 'B-02',
+        hospitalNotes: 'Desk attempted phone call at 11:15 AM; unreachable. Slot marked No-Show.',
+        createdAt: '26 Aug 2026',
+      ),
+    ];
+  }
+
+  static DoctorAvailableSlotsResponseModel calculateSlotsForDoctor({
+    required DoctorModel doctor,
+    required DateTime date,
+    bool isDoctorOnLeave = false,
+    String leaveReason = '',
+    String substituteDoctorName = '',
+  }) {
+    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final dayName = dayNames[date.weekday - 1];
+    final dateStr = date.toString().split(' ').first;
+
+    // Find schedule for this day
+    final matchingSchedule = doctor.schedules.where((s) => s.dayOfWeek.toLowerCase() == dayName.toLowerCase()).firstOrNull;
+
+    if (matchingSchedule == null) {
+      return DoctorAvailableSlotsResponseModel(
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        specialty: doctor.specialty,
+        organizationId: doctor.organizationId,
+        organizationName: doctor.organizationName,
+        date: dateStr,
+        dayOfWeek: dayName,
+        isWorkingDay: false,
+        isAvailable: false,
+        availabilityStatus: 'NOT_SCHEDULED',
+        availabilityReason: '${doctor.name} does not hold OPD consultations on ${dayName}s.',
+        totalSlots: 0,
+        availableSlotsCount: 0,
+        slots: const [],
+      );
+    }
+
+    if (isDoctorOnLeave) {
+      return DoctorAvailableSlotsResponseModel(
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        specialty: doctor.specialty,
+        organizationId: doctor.organizationId,
+        organizationName: doctor.organizationName,
+        date: dateStr,
+        dayOfWeek: dayName,
+        isWorkingDay: true,
+        isAvailable: false,
+        availabilityStatus: 'ON_LEAVE',
+        availabilityReason: leaveReason.isNotEmpty ? leaveReason : 'Doctor is on approved leave.',
+        substituteDoctorName: substituteDoctorName,
+        totalSlots: 0,
+        availableSlotsCount: 0,
+        slots: const [],
+      );
+    }
+
+    // Generate smart 20-minute slots for the session
+    final slots = [
+      AvailableSlotModel(slotId: 'S-1', startTime: '09:00 AM', endTime: '09:20 AM', slotLabel: '09:00 AM - 09:20 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: 'Available'),
+      AvailableSlotModel(slotId: 'S-2', startTime: '09:20 AM', endTime: '09:40 AM', slotLabel: '09:20 AM - 09:40 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: 'Available'),
+      AvailableSlotModel(slotId: 'S-3', startTime: '09:40 AM', endTime: '10:00 AM', slotLabel: '09:40 AM - 10:00 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: false, bookedCount: 5, statusText: 'Fully Booked'),
+      AvailableSlotModel(slotId: 'S-4', startTime: '10:00 AM', endTime: '10:20 AM', slotLabel: '10:00 AM - 10:20 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: '2 slots left', bookedCount: 3),
+      AvailableSlotModel(slotId: 'S-5', startTime: '10:20 AM', endTime: '10:40 AM', slotLabel: '10:20 AM - 10:40 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: 'Available'),
+      AvailableSlotModel(slotId: 'S-6', startTime: '10:40 AM', endTime: '11:00 AM', slotLabel: '10:40 AM - 11:00 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: 'Available'),
+      AvailableSlotModel(slotId: 'S-7', startTime: '11:00 AM', endTime: '11:20 AM', slotLabel: '11:00 AM - 11:20 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: '1 slot left', bookedCount: 4),
+      AvailableSlotModel(slotId: 'S-8', startTime: '11:20 AM', endTime: '11:40 AM', slotLabel: '11:20 AM - 11:40 AM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: 'Available'),
+      AvailableSlotModel(slotId: 'S-9', startTime: '11:40 AM', endTime: '12:00 PM', slotLabel: '11:40 AM - 12:00 PM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: false, bookedCount: 5, statusText: 'Fully Booked'),
+      AvailableSlotModel(slotId: 'S-10', startTime: '12:00 PM', endTime: '12:30 PM', slotLabel: '12:00 PM - 12:30 PM', roomNumber: matchingSchedule.locationRoom, consultationType: matchingSchedule.consultationType, isAvailable: true, statusText: 'Available'),
+    ];
+
+    final availableCount = slots.where((s) => s.isAvailable).length;
+
+    return DoctorAvailableSlotsResponseModel(
+      doctorId: doctor.id,
+      doctorName: doctor.name,
+      specialty: doctor.specialty,
+      organizationId: doctor.organizationId,
+      organizationName: doctor.organizationName,
+      date: dateStr,
+      dayOfWeek: dayName,
+      isWorkingDay: true,
+      isAvailable: availableCount > 0,
+      availabilityStatus: 'AVAILABLE',
+      availabilityReason: 'Doctor on duty & accepting appointments',
+      substituteDoctorName: substituteDoctorName,
+      roomNumber: matchingSchedule.locationRoom,
+      consultationType: matchingSchedule.consultationType,
+      totalSlots: slots.length,
+      availableSlotsCount: availableCount,
+      maxTokens: matchingSchedule.maxTokens,
+      bookedTokensCount: slots.length - availableCount,
+      slots: slots,
+    );
+  }
+
+  // ==========================================
+  // PHASE 2.6: ADVANCED QUEUE & PATIENT FLOW
+  // ==========================================
+
+  static List<QueueSessionModel> getMockQueueSessions() {
+    return [
+      QueueSessionModel(
+        id: 'QS-101',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-101',
+        doctorName: 'Dr. Anil Kumar MD, DM',
+        departmentName: 'Cardiology OPD',
+        roomNumber: 'OPD Room 102',
+        queueType: 'OPD',
+        queueTypeDisplay: 'General OPD Consultation',
+        tokenPrefix: 'C',
+        sessionDate: DateTime.now().toString().split(' ').first,
+        currentTokenNumber: 18,
+        totalTokensIssued: 28,
+        isActive: true,
+        isPaused: false,
+        avgConsultationDurationSeconds: 780, // 13 min
+        totalCompletedConsultations: 17,
+        tokens: [
+          const QueueTokenModel(
+            id: 'QT-118',
+            queueSessionId: 'QS-101',
+            tokenNumber: 18,
+            tokenLabel: 'C-18',
+            patientName: 'Devaki Amma',
+            patientPhone: '+91 98471 22334',
+            priority: 'NORMAL',
+            priorityRank: 1,
+            status: 'IN_CONSULTATION',
+            statusDisplay: 'In Consultation',
+            roomNumber: 'OPD Room 102',
+            doctorName: 'Dr. Anil Kumar MD, DM',
+          ),
+          const QueueTokenModel(
+            id: 'QT-119',
+            queueSessionId: 'QS-101',
+            tokenNumber: 19,
+            tokenLabel: 'C-19',
+            patientName: 'Karthyayani Amma',
+            patientPhone: '+91 94471 23456',
+            priority: 'PRIORITY',
+            priorityRank: 2,
+            status: 'CALLED',
+            statusDisplay: 'Now Calling',
+            roomNumber: 'OPD Room 102',
+            doctorName: 'Dr. Anil Kumar MD, DM',
+          ),
+          const QueueTokenModel(
+            id: 'QT-120',
+            queueSessionId: 'QS-101',
+            tokenNumber: 20,
+            tokenLabel: 'C-20',
+            patientName: 'Muhammed Basheer',
+            patientPhone: '+91 98472 33445',
+            priority: 'NORMAL',
+            priorityRank: 1,
+            status: 'CHECKED_IN',
+            statusDisplay: 'Checked In / In Waiting Area',
+            roomNumber: 'OPD Room 102',
+            doctorName: 'Dr. Anil Kumar MD, DM',
+          ),
+          const QueueTokenModel(
+            id: 'QT-121',
+            queueSessionId: 'QS-101',
+            tokenNumber: 21,
+            tokenLabel: 'C-21',
+            patientName: 'Suresh Menon',
+            patientPhone: '+91 94473 44556',
+            priority: 'URGENT',
+            priorityRank: 3,
+            isWalkIn: true,
+            status: 'WAITING',
+            statusDisplay: 'Waiting',
+            roomNumber: 'OPD Room 102',
+            doctorName: 'Dr. Anil Kumar MD, DM',
+          ),
+          const QueueTokenModel(
+            id: 'QT-122',
+            queueSessionId: 'QS-101',
+            tokenNumber: 22,
+            tokenLabel: 'C-22',
+            patientName: 'Fathima Beevi',
+            patientPhone: '+91 98474 55667',
+            priority: 'NORMAL',
+            priorityRank: 1,
+            status: 'WAITING',
+            statusDisplay: 'Waiting',
+            roomNumber: 'OPD Room 102',
+            doctorName: 'Dr. Anil Kumar MD, DM',
+          ),
+        ],
+      ),
+      QueueSessionModel(
+        id: 'QS-102',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-102',
+        doctorName: 'Dr. Priya Varma MD',
+        departmentName: 'Palliative Care & Oncology',
+        roomNumber: 'Palliative Suite 204',
+        queueType: 'PALLIATIVE',
+        queueTypeDisplay: 'Palliative Fast-Track OPD',
+        tokenPrefix: 'PAL',
+        sessionDate: DateTime.now().toString().split(' ').first,
+        currentTokenNumber: 5,
+        totalTokensIssued: 12,
+        isActive: true,
+        isPaused: false,
+        avgConsultationDurationSeconds: 1200, // 20 min
+        totalCompletedConsultations: 4,
+        tokens: [
+          const QueueTokenModel(
+            id: 'QT-205',
+            queueSessionId: 'QS-102',
+            tokenNumber: 5,
+            tokenLabel: 'PAL-05',
+            patientName: 'Lakshmikutty Teacher',
+            patientPhone: '+91 94475 66778',
+            priority: 'PRIORITY',
+            priorityRank: 2,
+            status: 'IN_CONSULTATION',
+            statusDisplay: 'In Consultation',
+            roomNumber: 'Palliative Suite 204',
+            doctorName: 'Dr. Priya Varma MD',
+          ),
+          const QueueTokenModel(
+            id: 'QT-206',
+            queueSessionId: 'QS-102',
+            tokenNumber: 6,
+            tokenLabel: 'PAL-06',
+            patientName: 'Krishnan Nair (Home Bedridden)',
+            patientPhone: '+91 98476 77889',
+            priority: 'URGENT',
+            priorityRank: 3,
+            status: 'CHECKED_IN',
+            statusDisplay: 'Checked In / Wheelchair Bay',
+            roomNumber: 'Palliative Suite 204',
+            doctorName: 'Dr. Priya Varma MD',
+          ),
+        ],
+      ),
+      QueueSessionModel(
+        id: 'QS-103',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-103',
+        doctorName: 'Chief Pharmacist',
+        departmentName: 'Central Dispensary',
+        roomNumber: 'Pharmacy Counter 1 & 2',
+        queueType: 'PHARMACY',
+        queueTypeDisplay: 'OPD Pharmacy Dispensation',
+        tokenPrefix: 'P',
+        sessionDate: DateTime.now().toString().split(' ').first,
+        currentTokenNumber: 42,
+        totalTokensIssued: 58,
+        isActive: true,
+        isPaused: false,
+        avgConsultationDurationSeconds: 180, // 3 min
+        totalCompletedConsultations: 41,
+        tokens: [
+          const QueueTokenModel(
+            id: 'QT-342',
+            queueSessionId: 'QS-103',
+            tokenNumber: 42,
+            tokenLabel: 'P-42',
+            patientName: 'Ramesh Babu',
+            patientPhone: '+91 98470 11223',
+            priority: 'NORMAL',
+            priorityRank: 1,
+            status: 'IN_CONSULTATION',
+            statusDisplay: 'Dispensing Medications',
+            roomNumber: 'Pharmacy Counter 1',
+            doctorName: 'Chief Pharmacist',
+          ),
+          const QueueTokenModel(
+            id: 'QT-343',
+            queueSessionId: 'QS-103',
+            tokenNumber: 43,
+            tokenLabel: 'P-43',
+            patientName: 'Sujatha K',
+            patientPhone: '+91 94477 88990',
+            priority: 'NORMAL',
+            priorityRank: 1,
+            status: 'WAITING',
+            statusDisplay: 'Waiting',
+            roomNumber: 'Pharmacy Counter 1',
+            doctorName: 'Chief Pharmacist',
+          ),
+        ],
+      ),
+      QueueSessionModel(
+        id: 'QS-104',
+        organizationId: 'org_kozhikode',
+        organizationName: 'Calicut Medical Center & Palliative Institute',
+        doctorId: 'DOC-104',
+        doctorName: 'Duty Pathologist',
+        departmentName: 'Diagnostic Laboratory',
+        roomNumber: 'Blood Sample Collection Room 4',
+        queueType: 'LABORATORY',
+        queueTypeDisplay: 'Clinical Pathology & Biochemistry',
+        tokenPrefix: 'L',
+        sessionDate: DateTime.now().toString().split(' ').first,
+        currentTokenNumber: 15,
+        totalTokensIssued: 24,
+        isActive: true,
+        isPaused: true,
+        pauseReason: 'Equipment Calibration & Bio-Reagent Cycle',
+        avgConsultationDurationSeconds: 300, // 5 min
+        totalCompletedConsultations: 14,
+        tokens: [],
+      ),
+    ];
+  }
+
+  static HospitalFlowAnalyticsModel getMockHospitalFlowAnalytics() {
+    return HospitalFlowAnalyticsModel(
+      organizationId: 'org_kozhikode',
+      organizationName: 'Calicut Medical Center & Palliative Institute',
+      reportDate: DateTime.now().toString().split(' ').first,
+      totalPatients: 246,
+      appointmentCount: 168,
+      walkInCount: 78,
+      completedCount: 184,
+      noShowCount: 12,
+      averageWaitMinutes: 18,
+      averageConsultationMinutes: 14,
+      peakHours: '09:30 AM – 11:45 AM',
+      departments: [
+        {'name': 'Cardiology OPD', 'patients': 64, 'avg_wait': 21, 'throughput': '94%'},
+        {'name': 'Palliative & Oncology', 'patients': 38, 'avg_wait': 12, 'throughput': '98%'},
+        {'name': 'General Medicine', 'patients': 72, 'avg_wait': 16, 'throughput': '91%'},
+        {'name': 'Diagnostic Lab', 'patients': 44, 'avg_wait': 8, 'throughput': '99%'},
+        {'name': 'Central Pharmacy', 'patients': 192, 'avg_wait': 5, 'throughput': '96%'},
+      ],
+    );
+  }
 }
+

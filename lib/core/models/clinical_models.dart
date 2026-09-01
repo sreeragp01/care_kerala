@@ -451,3 +451,241 @@ class EmergencySosEvent {
   });
 }
 
+class HomeVisitRequestModel {
+  final String id;
+  final String patientId;
+  final String patientName;
+  final String patientPhone;
+  final String requesterName;
+  final String requesterPhone;
+  final String requesterRelationship;
+  final String visitType;
+  final String urgency;
+  final String preferredDate;
+  final String preferredTimeSlot;
+  final String reasonAndSymptoms;
+  final String locationAddress;
+  String status;
+  String? rejectionReason;
+  final String createdAt;
+
+  HomeVisitRequestModel({
+    required this.id,
+    required this.patientId,
+    required this.patientName,
+    required this.patientPhone,
+    required this.requesterName,
+    required this.requesterPhone,
+    required this.requesterRelationship,
+    required this.visitType,
+    required this.urgency,
+    required this.preferredDate,
+    required this.preferredTimeSlot,
+    required this.reasonAndSymptoms,
+    required this.locationAddress,
+    this.status = 'PENDING',
+    this.rejectionReason,
+    required this.createdAt,
+  });
+}
+
+class CareTeamMemberModel {
+  final String id;
+  final String? userId;
+  final String? username;
+  final String memberName;
+  final String role;
+  final String phone;
+  final bool isPrimary;
+
+  CareTeamMemberModel({
+    required this.id,
+    this.userId,
+    this.username,
+    required this.memberName,
+    required this.role,
+    required this.phone,
+    this.isPrimary = false,
+  });
+}
+
+class CareTeamModel {
+  final String id;
+  final String name;
+  final String leadDoctorName;
+  final String primaryNurseName;
+  final String areaCoverage;
+  final bool isActive;
+  final List<CareTeamMemberModel> members;
+
+  CareTeamModel({
+    required this.id,
+    required this.name,
+    required this.leadDoctorName,
+    required this.primaryNurseName,
+    required this.areaCoverage,
+    this.isActive = true,
+    this.members = const [],
+  });
+}
+
+class PatientCareGoalModel {
+  final String id;
+  final String patientId;
+  final String category;
+  final String description;
+  final String targetDate;
+  bool isAchieved;
+  String? notes;
+
+  PatientCareGoalModel({
+    required this.id,
+    required this.patientId,
+    required this.category,
+    required this.description,
+    required this.targetDate,
+    this.isAchieved = false,
+    this.notes,
+  });
+}
+
+class CaregiverAccessModel {
+  final String id;
+  final String patientId;
+  final String caregiverName;
+  final String caregiverPhone;
+  final String relationship;
+  final List<String> permissions;
+  bool isActive;
+  final String grantedBy;
+  final String grantedAt;
+
+  CaregiverAccessModel({
+    required this.id,
+    required this.patientId,
+    required this.caregiverName,
+    required this.caregiverPhone,
+    required this.relationship,
+    required this.permissions,
+    this.isActive = true,
+    required this.grantedBy,
+    required this.grantedAt,
+  });
+
+  bool hasPermission(String perm) => permissions.contains(perm);
+}
+
+class MedicationAdministrationModel {
+  final String id;
+  final String planId;
+  final String medicineName;
+  final String dosage;
+  final String patientId;
+  final String scheduledDate;
+  final String timeSlot;
+  String status;
+  final bool recordedByCaregiver;
+  final bool verifiedByNurse;
+  final String? verifiedNurseName;
+  final String administeredAt;
+  final String notes;
+
+  MedicationAdministrationModel({
+    required this.id,
+    required this.planId,
+    required this.medicineName,
+    required this.dosage,
+    required this.patientId,
+    required this.scheduledDate,
+    required this.timeSlot,
+    required this.status,
+    this.recordedByCaregiver = true,
+    this.verifiedByNurse = false,
+    this.verifiedNurseName,
+    required this.administeredAt,
+    this.notes = '',
+  });
+}
+
+class MedicationPlanModel {
+  final String id;
+  final String patientId;
+  final String medicineName;
+  final String dosage;
+  final String route;
+  final String frequency;
+  final List<String> timeSlots;
+  final String prescribedByDoctor;
+  final String startDate;
+  final String? endDate;
+  final String instructions;
+  final bool isActive;
+  final List<MedicationAdministrationModel> administrations;
+
+  MedicationPlanModel({
+    required this.id,
+    required this.patientId,
+    required this.medicineName,
+    required this.dosage,
+    required this.route,
+    required this.frequency,
+    required this.timeSlots,
+    required this.prescribedByDoctor,
+    required this.startDate,
+    this.endDate,
+    required this.instructions,
+    this.isActive = true,
+    this.administrations = const [],
+  });
+}
+
+class RouteStopModel {
+  final String id;
+  final String visitId;
+  final String patientName;
+  final String patientAddress;
+  final String patientPhone;
+  final String visitType;
+  final int sequenceOrder;
+  final String locationArea;
+  final String estimatedArrivalTime;
+  bool isCompleted;
+
+  RouteStopModel({
+    required this.id,
+    required this.visitId,
+    required this.patientName,
+    required this.patientAddress,
+    required this.patientPhone,
+    required this.visitType,
+    required this.sequenceOrder,
+    required this.locationArea,
+    required this.estimatedArrivalTime,
+    this.isCompleted = false,
+  });
+}
+
+class CareTeamRouteModel {
+  final String id;
+  final String careTeamId;
+  final String careTeamName;
+  final String routeDate;
+  final String primaryNurseName;
+  String status;
+  final int totalStops;
+  final String notes;
+  final List<RouteStopModel> stops;
+
+  CareTeamRouteModel({
+    required this.id,
+    required this.careTeamId,
+    required this.careTeamName,
+    required this.routeDate,
+    required this.primaryNurseName,
+    this.status = 'PLANNED',
+    required this.totalStops,
+    this.notes = '',
+    this.stops = const [],
+  });
+}
+

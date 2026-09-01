@@ -23,6 +23,14 @@ from .models import (
     AppointmentStatusHistory,
     QueueSession,
     QueueToken,
+    QueueType,
+    QueuePriority,
+    QueuePauseReason,
+    QueuePolicy,
+    QueuePause,
+    PatientCheckIn,
+    WaitingTimeSnapshot,
+    DomainEventLog,
 )
 from apps.organizations.models import Organization
 
@@ -243,11 +251,17 @@ class AppointmentRequestSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     doctor_name = serializers.CharField(source='doctor.name', read_only=True)
     doctor_specialty = serializers.CharField(source='doctor.primary_specialty.name', read_only=True)
+    substitute_doctor_name = serializers.CharField(source='substitute_doctor.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    status_history = serializers.SerializerMethodField()
 
     class Meta:
         model = AppointmentRequest
         fields = '__all__'
+
+    def get_status_history(self, obj):
+        history = obj.status_history.all().order_by('created_at')
+        return AppointmentStatusHistorySerializer(history, many=True).data
 
     def validate_patient_phone(self, value):
         cleaned = ''.join(filter(str.isdigit, value or ''))
@@ -328,18 +342,88 @@ class AppointmentStatusHistorySerializer(serializers.ModelSerializer):
 
 class QueueTokenSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    room_number = serializers.CharField(source='queue_session.room_number', read_only=True)
+    doctor_name = serializers.CharField(source='queue_session.doctor.name', read_only=True)
 
     class Meta:
         model = QueueToken
+        fields = '__all__'
+
+class QueuePauseSerializer(serializers.ModelSerializer):
+    reason_display = serializers.CharField(source='get_reason_display', read_only=True)
+    paused_by_username = serializers.CharField(source='paused_by.username', read_only=True)
+
+    class Meta:
+        model = QueuePause
+        fields = '__all__'
+
+class QueuePolicySerializer(serializers.ModelSerializer):
+    queue_type_display = serializers.CharField(source='get_queue_type_display', read_only=True)
+
+    class Meta:
+        model = QueuePolicy
         fields = '__all__'
 
 class QueueSessionSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.name', read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
     organization_name = serializers.CharField(source='organization.name', read_only=True)
+    queue_type_display = serializers.CharField(source='get_queue_type_display', read_only=True)
+    pause_reason_display = serializers.CharField(source='get_pause_reason_display', read_only=True)
     tokens = QueueTokenSerializer(many=True, read_only=True)
+    pauses = QueuePauseSerializer(many=True, read_only=True)
 
     class Meta:
         model = QueueSession
         fields = '__all__'
+
+class PatientCheckInSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    token_label = serializers.CharField(source='token.token_label', read_only=True)
+
+    class Meta:
+        model = PatientCheckIn
+        fields = '__all__'
+
+class DigitalCheckInRequestSerializer(serializers.Serializer):
+    qr_hash = serializers.CharField(required=False, allow_blank=True, default='')
+    appointment_id = serializers.IntegerField(required=False, allow_null=True)
+    check_in_method = serializers.ChoiceField(choices=['QR_SCAN', 'KIOSK', 'RECEPTION_DESK', 'MOBILE_GEO'], default='QR_SCAN')
+
+class QueueTokenIssueRequestSerializer(serializers.Serializer):
+    queue_session_id = serializers.IntegerField(required=True)
+    patient_name = serializers.CharField(required=True, max_length=150)
+    patient_phone = serializers.CharField(required=True, max_length=20)
+    priority = serializers.ChoiceField(choices=QueuePriority.choices, default=QueuePriority.NORMAL)
+    is_walk_in = serializers.BooleanField(default=True)
+    appointment_id = serializers.IntegerField(required=False, allow_null=True)
+
+class QueueSessionPauseRequestSerializer(serializers.Serializer):
+    reason = serializers.ChoiceField(choices=QueuePauseReason.choices, required=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+class DomainEventLogSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+
+    class Meta:
+        model = DomainEventLog
+        fields = '__all__'
+
+class AppointmentRescheduleSerializer(serializers.Serializer):
+    new_date = serializers.DateField(required=True)
+    new_time_slot = serializers.CharField(required=True, max_length=100)
+    reason = serializers.CharField(required=False, allow_blank=True, default='')
+
+class AppointmentCancelSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=True, min_length=3)
+
+class DoctorLeaveImpactResolutionSerializer(serializers.Serializer):
+    appointment_ids = serializers.ListField(child=serializers.IntegerField(), min_length=1)
+    action = serializers.ChoiceField(choices=['REASSIGN_SUBSTITUTE', 'RESCHEDULE', 'CANCEL'])
+    substitute_doctor_id = serializers.IntegerField(required=False, allow_null=True)
+    new_date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default='')
+
+
 

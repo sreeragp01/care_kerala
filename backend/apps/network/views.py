@@ -1,4 +1,5 @@
 import uuid
+import datetime
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from rest_framework import status, views, permissions
@@ -32,6 +33,14 @@ from .models import (
     TokenStatus,
     QueueSession,
     QueueToken,
+    QueueType,
+    QueuePriority,
+    QueuePauseReason,
+    QueuePolicy,
+    QueuePause,
+    PatientCheckIn,
+    WaitingTimeSnapshot,
+    DomainEventLog,
 )
 from .serializers import (
     SpecialtySerializer,
@@ -51,12 +60,25 @@ from .serializers import (
     AppointmentStatusHistorySerializer,
     QueueSessionSerializer,
     QueueTokenSerializer,
+    QueuePauseSerializer,
+    QueuePolicySerializer,
+    PatientCheckInSerializer,
+    DigitalCheckInRequestSerializer,
+    QueueTokenIssueRequestSerializer,
+    QueueSessionPauseRequestSerializer,
     ChangeRequestSerializer,
     OrganizationDocumentSerializer,
     ClaimOrganizationRequestSerializer,
     PatientInformationReportSerializer,
     AppointmentRequestSerializer,
+    DomainEventLogSerializer,
+    AppointmentRescheduleSerializer,
+    AppointmentCancelSerializer,
+    DoctorLeaveImpactResolutionSerializer,
 )
+from .events import EventDispatcher, DomainEvent, DomainEventType
+from .slot_engine import SmartDoctorSlotEngine, DoctorLeaveImpactEngine
+from .queue_engine import SmartQueueEngine
 from .permissions import (
     IsPlatformAdminOrSuperAdmin,
     IsOrganizationAdminOrOwner,
@@ -65,6 +87,7 @@ from .permissions import (
     IsDocumentAuthorizedTenant,
     CanManageOPDAndQueue,
     IsAssignedDoctorOrHospitalAdmin,
+    IsQueueAuthorizedDoctorOrAdmin,
 )
 from apps.organizations.models import Organization
 
@@ -467,6 +490,17 @@ class AppointmentRequestCreateView(views.APIView):
         serializer = AppointmentRequestSerializer(data=request.data)
         if serializer.is_valid():
             appointment = serializer.save(status='REQUESTED')
+            EventDispatcher.dispatch(DomainEvent(
+                event_type=DomainEventType.APPOINTMENT_REQUESTED,
+                organization_id=appointment.organization_id,
+                entity_type='AppointmentRequest',
+                entity_id=appointment.id,
+                actor_id=request.user.id if request.user and hasattr(request.user, 'id') and request.user.is_authenticated else None,
+                actor_username=request.user.username if request.user and hasattr(request.user, 'username') and request.user.is_authenticated else appointment.patient_name,
+                title='New Appointment Request Received',
+                message=f"Appointment requested by {appointment.patient_name} with Dr. {appointment.doctor.name} for {appointment.preferred_date}.",
+                payload={'doctor_id': appointment.doctor_id, 'preferred_date': str(appointment.preferred_date), 'slot': appointment.preferred_time_slot}
+            ))
             return Response({
                 'success': True,
                 'message': 'Appointment request submitted. The hospital desk will confirm your token.',
@@ -1220,6 +1254,31 @@ class DoctorAvailabilityView(views.APIView):
             defaults={'status': status_val, 'reason': reason}
         )
 
+        # Trigger automatic appointment impact flagging if doctor marks leave or unavailable
+        if status_val in ['ON_LEAVE', 'UNAVAILABLE', 'EMERGENCY_DUTY', 'HOLIDAY']:
+            try:
+                date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d').date() if isinstance(date_str, str) else date_str
+                DoctorLeaveImpactEngine.flag_affected_appointments(
+                    doctor_id=int(doctor_id),
+                    organization_id=int(org_id),
+                    exception_date=date_obj,
+                    reason=reason,
+                    user=request.user
+                )
+                EventDispatcher.dispatch(DomainEvent(
+                    event_type=DomainEventType.DOCTOR_LEAVE_MARKED,
+                    organization_id=int(org_id),
+                    entity_type='DoctorAvailability',
+                    entity_id=availability.id,
+                    actor_id=request.user.id if request.user.is_authenticated else None,
+                    actor_username=request.user.username if request.user.is_authenticated else 'system',
+                    title='Doctor Marked On Leave',
+                    message=f"Doctor marked {status_val} on {date_str}. All affected appointments have been flagged for hospital desk review.",
+                    payload={'doctor_id': doctor_id, 'date': str(date_str), 'reason': reason}
+                ))
+            except Exception as e:
+                pass
+
         serializer = DoctorAvailabilitySerializer(availability)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
@@ -1324,6 +1383,28 @@ class AppointmentLifecycleActionView(views.APIView):
             changed_by=request.user,
             notes=notes
         )
+
+        # Emit central domain event
+        event_map = {
+            'accept': DomainEventType.APPOINTMENT_ACCEPTED,
+            'confirm': DomainEventType.APPOINTMENT_CONFIRMED,
+            'check-in': DomainEventType.APPOINTMENT_CHECKED_IN,
+            'cancel': DomainEventType.APPOINTMENT_CANCELLED,
+            'complete': DomainEventType.APPOINTMENT_COMPLETED,
+            'no-show': DomainEventType.APPOINTMENT_NO_SHOW,
+        }
+        event_type = event_map.get(action, DomainEventType.APPOINTMENT_CONFIRMED)
+        EventDispatcher.dispatch(DomainEvent(
+            event_type=event_type,
+            organization_id=appt.organization_id,
+            entity_type='AppointmentRequest',
+            entity_id=appt.id,
+            actor_id=request.user.id if request.user.is_authenticated else None,
+            actor_username=request.user.username if request.user.is_authenticated else 'desk_admin',
+            title=f"Appointment {appt.status}",
+            message=f"Appointment #{appt.id} transitioned to {appt.status}. {notes}".strip(),
+            payload={'from_status': old_status, 'to_status': appt.status, 'notes': notes}
+        ))
 
         return Response({
             'success': True,
@@ -1548,5 +1629,687 @@ class HospitalOperationsSummaryView(views.APIView):
             'cancelled_or_noshow': cancelled_count,
             'active_queue_sessions': queue_summaries
         })
+
+
+# ============================================================================
+# PHASE 2.5: SMART SLOTS, APPOINTMENT COORDINATION & LEAVE RESOLUTION
+# ============================================================================
+
+class DoctorAvailableSlotsView(views.APIView):
+    """Calculate real-time smart available slots for a doctor on a specific date"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        date_str = request.query_params.get('date')
+        org_id = request.query_params.get('organization_id')
+
+        if not date_str:
+            target_date = timezone.now().date()
+        else:
+            try:
+                target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not org_id:
+            affil = DoctorAffiliation.objects.filter(doctor_id=pk).first()
+            if affil:
+                org_id = affil.organization_id
+            else:
+                doc = Doctor.objects.filter(id=pk).first()
+                if not doc:
+                    return Response({'error': 'Doctor not found.'}, status=status.HTTP_404_NOT_FOUND)
+                first_org = Organization.objects.first()
+                org_id = first_org.id if first_org else 1
+
+        slot_data = SmartDoctorSlotEngine.calculate_slots(
+            doctor_id=pk,
+            organization_id=org_id,
+            target_date=target_date
+        )
+        return Response(slot_data)
+
+
+class AppointmentRescheduleView(views.APIView):
+    """Patient or Hospital Desk Reschedule Endpoint"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        try:
+            appt = AppointmentRequest.objects.select_related('organization', 'doctor').get(id=pk)
+        except AppointmentRequest.DoesNotExist:
+            return Response({'error': 'Appointment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AppointmentRescheduleSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        new_date = serializer.validated_data['new_date']
+        new_slot = serializer.validated_data['new_time_slot']
+        reason = serializer.validated_data.get('reason', '')
+
+        old_status = appt.status
+        old_date = appt.preferred_date
+        old_slot = appt.preferred_time_slot
+
+        appt.rescheduled_from_date = old_date
+        appt.rescheduled_from_slot = old_slot
+        appt.preferred_date = new_date
+        appt.preferred_time_slot = new_slot
+        appt.status = AppointmentStatus.RESCHEDULED
+        appt.reschedule_reason = reason
+        appt.is_doctor_unavailable_flagged = False
+        appt.save(update_fields=[
+            'preferred_date', 'preferred_time_slot', 'rescheduled_from_date',
+            'rescheduled_from_slot', 'status', 'reschedule_reason',
+            'is_doctor_unavailable_flagged', 'updated_at'
+        ])
+
+        AppointmentStatusHistory.objects.create(
+            appointment=appt,
+            from_status=old_status,
+            to_status=AppointmentStatus.RESCHEDULED,
+            changed_by=request.user if request.user.is_authenticated else None,
+            notes=f"Rescheduled from {old_date} ({old_slot}) to {new_date} ({new_slot}). Reason: {reason}"
+        )
+
+        EventDispatcher.dispatch(DomainEvent(
+            event_type=DomainEventType.APPOINTMENT_RESCHEDULED,
+            organization_id=appt.organization_id,
+            entity_type='AppointmentRequest',
+            entity_id=appt.id,
+            actor_id=request.user.id if request.user.is_authenticated else None,
+            actor_username=request.user.username if request.user.is_authenticated else appt.patient_name,
+            title='Appointment Rescheduled',
+            message=f"Appointment for {appt.patient_name} rescheduled to {new_date} at {new_slot}.",
+            payload={'old_date': str(old_date), 'new_date': str(new_date), 'new_slot': new_slot}
+        ))
+
+        return Response({
+            'success': True,
+            'message': f"Appointment rescheduled successfully to {new_date} ({new_slot}).",
+            'appointment': AppointmentRequestSerializer(appt).data
+        })
+
+
+class AppointmentCancelView(views.APIView):
+    """Patient or Hospital Desk Cancellation Endpoint"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        try:
+            appt = AppointmentRequest.objects.select_related('organization', 'doctor').get(id=pk)
+        except AppointmentRequest.DoesNotExist:
+            return Response({'error': 'Appointment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AppointmentCancelSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        reason = serializer.validated_data['reason']
+        old_status = appt.status
+
+        appt.status = AppointmentStatus.CANCELLED
+        appt.cancellation_reason = reason
+        appt.save(update_fields=['status', 'cancellation_reason', 'updated_at'])
+
+        AppointmentStatusHistory.objects.create(
+            appointment=appt,
+            from_status=old_status,
+            to_status=AppointmentStatus.CANCELLED,
+            changed_by=request.user if request.user.is_authenticated else None,
+            notes=f"Cancellation reason: {reason}"
+        )
+
+        EventDispatcher.dispatch(DomainEvent(
+            event_type=DomainEventType.APPOINTMENT_CANCELLED,
+            organization_id=appt.organization_id,
+            entity_type='AppointmentRequest',
+            entity_id=appt.id,
+            actor_id=request.user.id if request.user.is_authenticated else None,
+            actor_username=request.user.username if request.user.is_authenticated else appt.patient_name,
+            title='Appointment Cancelled',
+            message=f"Appointment #{appt.id} for {appt.patient_name} cancelled: {reason}",
+            payload={'cancellation_reason': reason}
+        ))
+
+        return Response({
+            'success': True,
+            'message': 'Appointment cancelled successfully.',
+            'appointment': AppointmentRequestSerializer(appt).data
+        })
+
+
+class AppointmentHistoryTimelineView(views.APIView):
+    """Retrieve full audit status history and timeline for an appointment"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        try:
+            appt = AppointmentRequest.objects.select_related('organization', 'doctor', 'substitute_doctor').get(id=pk)
+        except AppointmentRequest.DoesNotExist:
+            return Response({'error': 'Appointment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        history_qs = appt.status_history.all().order_by('created_at')
+        events_qs = DomainEventLog.objects.filter(entity_type='AppointmentRequest', entity_id=pk).order_by('created_at')
+
+        return Response({
+            'appointment': AppointmentRequestSerializer(appt).data,
+            'status_history': AppointmentStatusHistorySerializer(history_qs, many=True).data,
+            'domain_events': DomainEventLogSerializer(events_qs, many=True).data
+        })
+
+
+class PatientAppointmentsListView(views.APIView):
+    """Patient Appointment Center: retrieve all appointments for a patient grouped/filtered"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        phone = request.query_params.get('phone', '').strip()
+        status_filter = request.query_params.get('status_filter', 'all').lower()
+
+        qs = AppointmentRequest.objects.select_related('organization', 'doctor', 'substitute_doctor')
+        if phone:
+            qs = qs.filter(patient_phone__icontains=phone)
+
+        today = timezone.now().date()
+
+        if status_filter == 'today':
+            qs = qs.filter(preferred_date=today).exclude(status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED])
+        elif status_filter == 'upcoming':
+            qs = qs.filter(preferred_date__gt=today).exclude(status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED, AppointmentStatus.COMPLETED])
+        elif status_filter == 'past':
+            qs = qs.filter(Q(status=AppointmentStatus.COMPLETED) | Q(preferred_date__lt=today)).exclude(status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW])
+        elif status_filter == 'cancelled':
+            qs = qs.filter(status__in=[AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED])
+        elif status_filter == 'noshow':
+            qs = qs.filter(status=AppointmentStatus.NO_SHOW)
+
+        serializer = AppointmentRequestSerializer(qs.order_by('-preferred_date', '-created_at')[:50], many=True)
+        return Response({
+            'count': qs.count(),
+            'status_filter': status_filter,
+            'appointments': serializer.data
+        })
+
+
+class HospitalAppointmentDeskView(views.APIView):
+    """Hospital Appointment Desk: Aggregated Multi-Filter & Metrics Console for Hospital Staff"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def get(self, request):
+        org_id = request.query_params.get('organization_id')
+        user_org = getattr(request.user, 'organization', None)
+
+        if not org_id and user_org:
+            org_id = user_org.id
+
+        if not org_id:
+            first_org = Organization.objects.first()
+            org_id = first_org.id if first_org else 1
+
+        today = timezone.now().date()
+        date_param = request.query_params.get('date')
+        if date_param:
+            try:
+                filter_date = datetime.datetime.strptime(date_param, '%Y-%m-%d').date()
+            except ValueError:
+                filter_date = today
+        else:
+            filter_date = today
+
+        doctor_id = request.query_params.get('doctor_id')
+        status_param = request.query_params.get('status')
+        search_query = request.query_params.get('search', '').strip()
+
+        base_qs = AppointmentRequest.objects.filter(organization_id=org_id, preferred_date=filter_date).select_related('organization', 'doctor', 'substitute_doctor')
+
+        # Metrics for the day
+        metrics = {
+            'pending_requests_count': base_qs.filter(status__in=[AppointmentStatus.REQUESTED, AppointmentStatus.PENDING_HOSPITAL]).count(),
+            'confirmed_count': base_qs.filter(status__in=[AppointmentStatus.ACCEPTED, AppointmentStatus.CONFIRMED]).count(),
+            'checked_in_count': base_qs.filter(status=AppointmentStatus.CHECKED_IN).count(),
+            'waiting_count': base_qs.filter(status=AppointmentStatus.CHECKED_IN).count(),
+            'in_consultation_count': base_qs.filter(status=AppointmentStatus.IN_CONSULTATION).count(),
+            'completed_count': base_qs.filter(status=AppointmentStatus.COMPLETED).count(),
+            'cancelled_count': base_qs.filter(status=AppointmentStatus.CANCELLED).count(),
+            'noshow_count': base_qs.filter(status=AppointmentStatus.NO_SHOW).count(),
+            'doctor_leave_flagged_count': base_qs.filter(is_doctor_unavailable_flagged=True).count(),
+            'total_appointments_count': base_qs.count()
+        }
+
+        qs = base_qs
+        if doctor_id:
+            qs = qs.filter(doctor_id=doctor_id)
+        if status_param and status_param != 'ALL':
+            qs = qs.filter(status=status_param)
+        if search_query:
+            qs = qs.filter(
+                Q(patient_name__icontains=search_query) |
+                Q(patient_phone__icontains=search_query) |
+                Q(token_number__icontains=search_query) |
+                Q(doctor__name__icontains=search_query)
+            )
+
+        serializer = AppointmentRequestSerializer(qs.order_by('created_at'), many=True)
+
+        return Response({
+            'organization_id': int(org_id),
+            'date': str(filter_date),
+            'metrics': metrics,
+            'appointments': serializer.data
+        })
+
+
+class DoctorLeaveImpactResolutionView(views.APIView):
+    """Bulk resolve flagged appointments affected by doctor unavailability or leave"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def post(self, request):
+        serializer = DoctorLeaveImpactResolutionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        org_id = request.data.get('organization_id')
+        user_org = getattr(request.user, 'organization', None)
+        if not org_id and user_org:
+            org_id = user_org.id
+        elif not org_id:
+            org_id = 1
+
+        result = DoctorLeaveImpactEngine.resolve_impact(
+            organization_id=org_id,
+            appointment_ids=serializer.validated_data['appointment_ids'],
+            action=serializer.validated_data['action'],
+            substitute_doctor_id=serializer.validated_data.get('substitute_doctor_id'),
+            new_date=serializer.validated_data.get('new_date'),
+            notes=serializer.validated_data.get('notes', ''),
+            user=request.user
+        )
+
+        return Response(result, status=status.HTTP_200_OK)
+
+
+# =========================================================================
+# PHASE 2.6: ADVANCED QUEUE, TOKEN & PATIENT FLOW VIEWS
+# =========================================================================
+
+class MultiQueueSessionListView(views.APIView):
+    """List or create active multi-department queue sessions (OPD, Emergency, Pharmacy, Lab, Radiology, etc.)"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def get(self, request):
+        user_org = getattr(request.user, 'organization', None)
+        org_id = request.query_params.get('organization_id')
+        if not org_id and user_org:
+            org_id = user_org.id
+        elif not org_id:
+            org_id = 1
+
+        qs = QueueSession.objects.filter(organization_id=org_id).select_related('organization', 'doctor', 'department')
+        queue_type = request.query_params.get('queue_type')
+        is_active = request.query_params.get('is_active')
+
+        if queue_type:
+            qs = qs.filter(queue_type=queue_type)
+        if is_active is not None:
+            qs = qs.filter(is_active=(is_active.lower() == 'true'))
+
+        serializer = QueueSessionSerializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user_org = getattr(request.user, 'organization', None)
+        org_id = request.data.get('organization_id') or (user_org.id if user_org else 1)
+        doctor_id = request.data.get('doctor_id')
+        department_id = request.data.get('department_id')
+        queue_type = request.data.get('queue_type', QueueType.OPD)
+        room_number = request.data.get('room_number', 'OPD Room 102')
+        token_prefix = request.data.get('token_prefix') or SmartQueueEngine.DEFAULT_PREFIXES.get(queue_type, 'C')
+
+        session = QueueSession.objects.create(
+            organization_id=org_id,
+            doctor_id=doctor_id,
+            department_id=department_id,
+            queue_type=queue_type,
+            token_prefix=token_prefix,
+            room_number=room_number,
+            session_date=datetime.date.today(),
+            is_active=True,
+        )
+
+        serializer = QueueSessionSerializer(session)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class QueueSessionDetailStatusView(views.APIView):
+    """Retrieve comprehensive operational status for a single queue session"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            session = QueueSession.objects.select_related('organization', 'doctor', 'department').get(pk=pk)
+        except QueueSession.DoesNotExist:
+            return Response({'detail': 'Queue session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Cross-tenant check for staff
+        user_org = getattr(request.user, 'organization', None)
+        if user_org and user_org.id != session.organization_id and not (request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin')):
+            return Response({'detail': 'Access denied to other hospital queues.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = QueueSessionSerializer(session)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class QueueEstimatedWaitView(views.APIView):
+    """Calculate real-time estimated wait time, patients ahead, and queue dynamics for a patient's token"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        try:
+            token = QueueToken.objects.select_related('queue_session__organization', 'queue_session__doctor', 'queue_session__department').get(pk=pk)
+        except QueueToken.DoesNotExist:
+            return Response({'detail': 'Token not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        wait_info = SmartQueueEngine.calculate_estimated_wait_time(token)
+        return Response(wait_info, status=status.HTTP_200_OK)
+
+
+class QueuePublicDisplayView(views.APIView):
+    """Public TV / Kiosk Display monitor feed — strictly anonymized, displaying only token numbers and room directions"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        try:
+            display_data = SmartQueueEngine.get_public_display_data(pk)
+            return Response(display_data, status=status.HTTP_200_OK)
+        except QueueSession.DoesNotExist:
+            return Response({'detail': 'Queue session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class QueueSessionCallNextView(views.APIView):
+    """Doctor or Nurse calls the next highest priority waiting patient to the OPD consultation room"""
+    permission_classes = [IsQueueAuthorizedDoctorOrAdmin]
+
+    def post(self, request, pk):
+        try:
+            session = QueueSession.objects.get(pk=pk)
+        except QueueSession.DoesNotExist:
+            return Response({'detail': 'Queue session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, session)
+
+        try:
+            called_token = SmartQueueEngine.call_next_token(session.id, actor_user=request.user)
+            if not called_token:
+                return Response({'detail': 'No waiting patients in this queue.'}, status=status.HTTP_200_OK)
+
+            serializer = QueueTokenSerializer(called_token)
+            return Response({
+                'success': True,
+                'message': f"Now calling Token {called_token.token_label} ({called_token.get_priority_display()}) to {session.room_number}.",
+                'token': serializer.data,
+                'current_token_number': session.current_token_number
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class QueueTokenRecallView(views.APIView):
+    """Trigger staged recall for an absent patient token before enforcing no-show policy"""
+    permission_classes = [IsQueueAuthorizedDoctorOrAdmin]
+
+    def post(self, request, pk):
+        try:
+            token = QueueToken.objects.select_related('queue_session__organization', 'queue_session__doctor').get(pk=pk)
+        except QueueToken.DoesNotExist:
+            return Response({'detail': 'Token not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, token)
+
+        recalled = SmartQueueEngine.recall_token(token.id, actor_user=request.user)
+        serializer = QueueTokenSerializer(recalled)
+        return Response({
+            'success': True,
+            'message': f"Recall #{recalled.call_count} alert broadcast for Token {recalled.token_label}.",
+            'token': serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class QueueTokenSkipView(views.APIView):
+    """Hold / skip a patient token in the queue"""
+    permission_classes = [IsQueueAuthorizedDoctorOrAdmin]
+
+    def post(self, request, pk):
+        try:
+            token = QueueToken.objects.select_related('queue_session__organization', 'queue_session__doctor').get(pk=pk)
+        except QueueToken.DoesNotExist:
+            return Response({'detail': 'Token not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, token)
+
+        reason = request.data.get('reason', 'Patient not present when called')
+        token.status = TokenStatus.SKIPPED
+        token.clinical_notes = f"[SKIPPED] {reason}"
+        token.save(update_fields=['status', 'clinical_notes'])
+
+        EventDispatcher.dispatch(DomainEvent(
+            event_type=DomainEventType.QUEUE_TOKEN_SKIPPED,
+            organization_id=token.queue_session.organization_id,
+            entity_type='QueueToken',
+            entity_id=token.id,
+            actor_id=request.user.id if request.user else None,
+            actor_username=request.user.username if request.user else 'staff',
+            title=f"Token {token.token_label} Skipped",
+            message=f"Token {token.token_label} skipped: {reason}",
+            payload={'token_label': token.token_label, 'reason': reason}
+        ))
+
+        return Response({
+            'success': True,
+            'message': f"Token {token.token_label} marked as skipped.",
+            'token': QueueTokenSerializer(token).data
+        }, status=status.HTTP_200_OK)
+
+
+class QueueSessionPauseView(views.APIView):
+    """Pause an active OPD session with mandatory clinical/administrative reason"""
+    permission_classes = [IsQueueAuthorizedDoctorOrAdmin]
+
+    def post(self, request, pk):
+        try:
+            session = QueueSession.objects.get(pk=pk)
+        except QueueSession.DoesNotExist:
+            return Response({'detail': 'Queue session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, session)
+
+        serializer = QueueSessionPauseRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            pause = SmartQueueEngine.pause_session(
+                session_id=session.id,
+                reason=serializer.validated_data['reason'],
+                notes=serializer.validated_data.get('notes', ''),
+                actor_user=request.user
+            )
+            return Response({
+                'success': True,
+                'message': f"Queue session paused ({pause.get_reason_display()}).",
+                'pause': QueuePauseSerializer(pause).data
+            }, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class QueueSessionResumeView(views.APIView):
+    """Resume a paused OPD session"""
+    permission_classes = [IsQueueAuthorizedDoctorOrAdmin]
+
+    def post(self, request, pk):
+        try:
+            session = QueueSession.objects.get(pk=pk)
+        except QueueSession.DoesNotExist:
+            return Response({'detail': 'Queue session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        self.check_object_permissions(request, session)
+
+        resumed = SmartQueueEngine.resume_session(session.id, actor_user=request.user)
+        return Response({
+            'success': True,
+            'message': "Queue session resumed successfully.",
+            'session': QueueSessionSerializer(resumed).data
+        }, status=status.HTTP_200_OK)
+
+
+class QueueTokenUnifiedIssueView(views.APIView):
+    """Generate a concurrency-safe unified queue token for walk-in or appointment check-in"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def post(self, request):
+        serializer = QueueTokenIssueRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            session = QueueSession.objects.get(id=serializer.validated_data['queue_session_id'])
+        except QueueSession.DoesNotExist:
+            return Response({'detail': 'Queue session not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        appt = None
+        appt_id = serializer.validated_data.get('appointment_id')
+        if appt_id:
+            appt = AppointmentRequest.objects.filter(id=appt_id).first()
+
+        token = SmartQueueEngine.issue_unified_token(
+            queue_session=session,
+            patient_name=serializer.validated_data['patient_name'],
+            patient_phone=serializer.validated_data['patient_phone'],
+            appointment=appt,
+            priority=serializer.validated_data['priority'],
+            is_walk_in=serializer.validated_data.get('is_walk_in', True),
+            actor_user=request.user
+        )
+
+        return Response({
+            'success': True,
+            'token': QueueTokenSerializer(token).data
+        }, status=status.HTTP_201_CREATED)
+
+
+class DigitalCheckInView(views.APIView):
+    """Validate digital arrival QR scan at entrance or kiosk and activate token"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = DigitalCheckInRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user_org = getattr(request.user, 'organization', None)
+        org_id = request.data.get('organization_id') or (user_org.id if user_org else 1)
+
+        try:
+            org = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({'detail': 'Organization not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            result = SmartQueueEngine.process_digital_check_in(
+                organization=org,
+                qr_hash=serializer.validated_data.get('qr_hash', ''),
+                appointment_id=serializer.validated_data.get('appointment_id'),
+                check_in_method=serializer.validated_data.get('check_in_method', 'QR_SCAN'),
+                verified_by=request.user
+            )
+            return Response(result, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GenerateAppointmentQRView(views.APIView):
+    """Generate or retrieve tamper-resistant QR code hash for an appointment"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        appt_id = request.data.get('appointment_id')
+        if not appt_id:
+            return Response({'detail': 'appointment_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            appt = AppointmentRequest.objects.select_related('organization', 'doctor').get(id=appt_id)
+        except AppointmentRequest.DoesNotExist:
+            return Response({'detail': 'Appointment not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        token = QueueToken.objects.filter(appointment=appt).first()
+        if not token:
+            # Find or create active session
+            session = QueueSession.objects.filter(
+                organization=appt.organization,
+                doctor=appt.doctor,
+                session_date=datetime.date.today(),
+                is_active=True
+            ).first()
+            if not session:
+                session = QueueSession.objects.create(
+                    organization=appt.organization,
+                    doctor=appt.doctor,
+                    department=appt.doctor.department,
+                    session_date=datetime.date.today(),
+                    room_number='OPD Room 102',
+                    queue_type=QueueType.OPD,
+                    token_prefix='C'
+                )
+            token = SmartQueueEngine.issue_unified_token(
+                queue_session=session,
+                patient_name=appt.patient_name,
+                patient_phone=appt.patient_phone,
+                appointment=appt,
+                priority=QueuePriority.NORMAL,
+                is_walk_in=False,
+                actor_user=request.user
+            )
+
+        qr_payload = f"carelink:checkin:{token.qr_code_hash}"
+        return Response({
+            'appointment_id': appt.id,
+            'token_id': token.id,
+            'token_label': token.token_label,
+            'qr_code_hash': token.qr_code_hash,
+            'qr_payload': qr_payload,
+            'patient_name': appt.patient_name,
+            'doctor_name': appt.doctor.name,
+            'organization_name': appt.organization.name,
+            'room_number': token.queue_session.room_number,
+        }, status=status.HTTP_200_OK)
+
+
+class HospitalPatientFlowAnalyticsView(views.APIView):
+    """Aggregate hospital throughput, average wait times, consultation durations, and department bottlenecks"""
+    permission_classes = [CanManageOPDAndQueue]
+
+    def get(self, request):
+        user_org = getattr(request.user, 'organization', None)
+        org_id = request.query_params.get('organization_id') or (user_org.id if user_org else 1)
+
+        try:
+            org = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({'detail': 'Organization not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        date_str = request.query_params.get('date')
+        target_date = datetime.date.today()
+        if date_str:
+            try:
+                target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+        analytics = SmartQueueEngine.get_hospital_flow_analytics(organization=org, target_date=target_date)
+        return Response(analytics, status=status.HTTP_200_OK)
+
+
 
 

@@ -20,8 +20,8 @@ class IsOrganizationAdminOrOwner(permissions.BasePermission):
         return (
             request.user.is_superuser or
             getattr(request.user, 'role', '') in (
-                'superAdmin', 'platformAdmin', 'orgAdmin', 'organizationOwner',
-                'SUPER_ADMIN', 'PLATFORM_ADMIN', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'
+                'superAdmin', 'platformAdmin', 'orgAdmin', 'organizationOwner', 'hospitalAdmin', 'admin',
+                'SUPER_ADMIN', 'PLATFORM_ADMIN', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'HOSPITAL_ADMIN', 'ADMIN'
             )
         )
 
@@ -43,8 +43,8 @@ class IsOrganizationModeratorOrAdmin(permissions.BasePermission):
         return (
             request.user.is_superuser or
             getattr(request.user, 'role', '') in (
-                'superAdmin', 'platformAdmin', 'orgAdmin', 'organizationOwner', 'moderator',
-                'SUPER_ADMIN', 'PLATFORM_ADMIN', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'MODERATOR'
+                'superAdmin', 'platformAdmin', 'orgAdmin', 'organizationOwner', 'moderator', 'hospitalAdmin',
+                'SUPER_ADMIN', 'PLATFORM_ADMIN', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'MODERATOR', 'HOSPITAL_ADMIN'
             )
         )
 
@@ -67,11 +67,11 @@ class IsHospitalTeamAdmin(permissions.BasePermission):
 
         # Check user role or active admin membership
         user_role = getattr(request.user, 'role', '')
-        if user_role in ('orgAdmin', 'organizationOwner', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'):
+        if user_role in ('orgAdmin', 'organizationOwner', 'hospitalAdmin', 'admin', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'HOSPITAL_ADMIN', 'ADMIN'):
             return True
 
         return request.user.organization_memberships.filter(
-            role__in=['ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'],
+            role__in=['ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'HOSPITAL_ADMIN', 'ADMIN'],
             status='ACTIVE'
         ).exists()
 
@@ -87,7 +87,7 @@ class IsHospitalTeamAdmin(permissions.BasePermission):
 
         return request.user.organization_memberships.filter(
             organization=target_org,
-            role__in=['ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER'],
+            role__in=['ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'HOSPITAL_ADMIN', 'ADMIN'],
             status='ACTIVE'
         ).exists()
 
@@ -109,7 +109,7 @@ class IsDocumentAuthorizedTenant(permissions.BasePermission):
             return False
 
         # Only Org Admin or Org Owner can view sensitive documents
-        return user_role in ('orgAdmin', 'organizationOwner', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER')
+        return user_role in ('orgAdmin', 'organizationOwner', 'hospitalAdmin', 'admin', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'HOSPITAL_ADMIN', 'ADMIN')
 
 class CanManageOPDAndQueue(permissions.BasePermission):
     """Allows Org Admins, Receptionists, Doctors, and Moderators to manage daily OPD and patient queues."""
@@ -121,8 +121,8 @@ class CanManageOPDAndQueue(permissions.BasePermission):
             return True
 
         user_role = getattr(request.user, 'role', '')
-        if user_role in ('orgAdmin', 'organizationOwner', 'doctor', 'receptionist', 'nurse', 'staff', 'moderator',
-                         'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'DOCTOR', 'RECEPTION', 'NURSE', 'STAFF', 'MODERATOR'):
+        if user_role in ('orgAdmin', 'organizationOwner', 'hospitalAdmin', 'admin', 'doctor', 'receptionist', 'nurse', 'staff', 'moderator',
+                         'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'HOSPITAL_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTION', 'NURSE', 'STAFF', 'MODERATOR'):
             return True
 
         return request.user.organization_memberships.filter(
@@ -177,4 +177,51 @@ class IsAssignedDoctorOrHospitalAdmin(permissions.BasePermission):
             return request.user.doctor_profile.id == doctor.id
 
         return False
+
+class IsQueueAuthorizedDoctorOrAdmin(permissions.BasePermission):
+    """Guarantees strict isolation:
+
+    1. Platform Admins have full access.
+    2. Hospital Admins & Staff can only manage queue sessions of their own hospital.
+    3. Doctors can only operate (call, recall, pause, skip) their own assigned queue sessions.
+    """
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.is_superuser or getattr(request.user, 'role', '') in ('superAdmin', 'platformAdmin', 'SUPER_ADMIN', 'PLATFORM_ADMIN'):
+            return True
+
+        # Extract target organization and doctor
+        target_org = getattr(obj, 'organization', None)
+        target_doctor = getattr(obj, 'doctor', None)
+
+        if not target_org and hasattr(obj, 'queue_session'):
+            target_org = obj.queue_session.organization
+            target_doctor = obj.queue_session.doctor
+
+        user_org = getattr(request.user, 'organization', None)
+        user_role = getattr(request.user, 'role', '')
+
+        # Cross-tenant check: if user belongs to an org, it MUST match target_org
+        if user_org and target_org and user_org.id != target_org.id:
+            return False
+
+        # Hospital Admin / Owner full access within their org
+        if user_role in ('orgAdmin', 'organizationOwner', 'hospitalAdmin', 'admin', 'ORGANIZATION_ADMIN', 'ORGANIZATION_OWNER', 'HOSPITAL_ADMIN', 'ADMIN', 'ORG_ADMIN'):
+            return user_org and target_org and user_org.id == target_org.id
+
+        # Reception / Staff access within their org
+        if user_role in ('receptionist', 'nurse', 'staff', 'RECEPTION', 'NURSE', 'STAFF'):
+            return user_org and target_org and user_org.id == target_org.id
+
+        # Doctor check: must be the doctor assigned to this queue session or doctor in same org
+        if user_role in ('doctor', 'DOCTOR'):
+            if hasattr(request.user, 'doctor_profile') and target_doctor:
+                return request.user.doctor_profile.id == target_doctor.id
+            return user_org and target_org and user_org.id == target_org.id
+
+        return False
+
 

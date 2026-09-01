@@ -10,6 +10,7 @@ import 'staff_registration_screen.dart';
 import '../../patients/screens/patient_registration_screen.dart';
 import '../../legal/widgets/legal_viewer.dart';
 import '../../../core/widgets/carelink_brand_logo.dart';
+import '../../../core/services/api_service.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -33,6 +34,12 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
   bool _patientOtpSent = false;
   String? _patientGeneratedOtp;
+
+  // Incoming Live SMS Simulation HUD Overlay
+  bool _showIncomingSmsBanner = false;
+  String? _incomingSmsMessage;
+  String? _incomingSmsPhone;
+  String? _incomingSmsOtp;
 
   @override
   void dispose() {
@@ -90,10 +97,23 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final otp = widget.state.requestPasswordResetOtp(phone);
+    final smsText = 'CareLink Kerala: Your 6-digit verification code is $otp. Valid for 10 mins. Do not share.';
+
     setState(() {
       _patientOtpSent = true;
       _patientGeneratedOtp = otp;
       _errorMessage = null;
+      _showIncomingSmsBanner = true;
+      _incomingSmsMessage = smsText;
+      _incomingSmsPhone = phone;
+      _incomingSmsOtp = otp;
+    });
+
+    // Also trigger backend SMS Gateway dispatch (Fast2SMS / Twilio / Sandbox)
+    ApiService.sendPhoneOtp(phone).then((res) {
+      if (res != null && res['otp'] != null) {
+        debugPrint('Backend Phone SMS OTP Dispatched: ${res['otp']}');
+      }
     });
   }
 
@@ -140,14 +160,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Official Brand Logo Emblem & Wordmark
                   CareLinkBrandLogo(
@@ -726,6 +748,127 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+      Align(
+        alignment: Alignment.topCenter,
+        child: _buildIncomingSmsBanner(isDark),
+      ),
+    ],
+  ),
+);
+}
+
+  Widget _buildIncomingSmsBanner(bool isDark) {
+    if (!_showIncomingSmsBanner) return const SizedBox.shrink();
+
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        constraints: const BoxConstraints(maxWidth: 480),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(
+            color: AppColors.accentGold.withValues(alpha: 0.8),
+            width: 1.5,
+          ),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.sms_rounded, color: AppColors.accentGold, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '📱 INCOMING SMS • JUST NOW',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                          color: AppColors.accentGold,
+                        ),
+                      ),
+                      Text(
+                        'CareLink Kerala • To: +91 ${_incomingSmsPhone ?? ""}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => setState(() => _showIncomingSmsBanner = false),
+                ),
+              ],
+            ),
+            const Divider(color: Colors.white24, height: 14),
+            Text(
+              _incomingSmsMessage ?? 'Your CareLink Kerala OTP is $_incomingSmsOtp.',
+              style: const TextStyle(fontSize: 12, color: Colors.white, height: 1.3),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.primaryGreen),
+                  ),
+                  child: Text(
+                    'OTP: ${_incomingSmsOtp ?? "------"}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.2),
+                  ),
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    if (_incomingSmsOtp != null) {
+                      _patientOtpController.text = _incomingSmsOtp!;
+                      setState(() => _showIncomingSmsBanner = false);
+                      _handlePatientVerifyAndSignIn();
+                    }
+                  },
+                  icon: const Icon(Icons.flash_on_rounded, size: 14, color: Colors.black),
+                  label: const Text(
+                    'Auto-Fill & Sign In',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentGold,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    minimumSize: Size.zero,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1100,13 +1243,19 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             if (step == 1)
               ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   final email = emailCtrl.text.trim();
                   if (email.isEmpty) {
                     setDialogState(() => errorMessage = 'Please enter your email or phone number.');
                     return;
                   }
+                  // Dispatch local state + call backend SMTP email API
                   final otp = widget.state.requestPasswordResetOtp(email);
+                  ApiService.requestPasswordResetOtp(email).then((res) {
+                    if (res != null && res['otp'] != null) {
+                      debugPrint('Backend OTP dispatched: ${res['otp']}');
+                    }
+                  });
                   setDialogState(() {
                     step = 2;
                     generatedOtp = otp;
@@ -1118,7 +1267,7 @@ class _LoginScreenState extends State<LoginScreen> {
               )
             else
               ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   final otp = otpCtrl.text.trim();
                   final newPass = newPassCtrl.text.trim();
                   final confirmPass = confirmPassCtrl.text.trim();
@@ -1136,7 +1285,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     return;
                   }
 
+                  // Verify locally and sync with backend
                   final success = widget.state.verifyAndResetPassword(
+                    emailOrPhone: emailCtrl.text.trim(),
+                    otp: otp,
+                    newPassword: newPass,
+                  );
+
+                  ApiService.confirmPasswordReset(
                     emailOrPhone: emailCtrl.text.trim(),
                     otp: otp,
                     newPassword: newPass,

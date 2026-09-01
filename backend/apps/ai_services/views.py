@@ -24,7 +24,10 @@ class PatientSummaryView(APIView):
         user = request.user
         try:
             p_queryset = Patient.objects.all()
-            if user.role != UserRole.SUPER_ADMIN and user.organization_id:
+            if user.role not in [UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN, UserRole.DOCTOR, UserRole.NURSE]:
+                # Patients can only view their own summary
+                p_queryset = p_queryset.filter(phone=user.phone)
+            elif user.role != UserRole.SUPER_ADMIN and user.organization_id:
                 p_queryset = p_queryset.filter(organization_id=user.organization_id)
             
             p = p_queryset.get(id=patient_id)
@@ -35,7 +38,7 @@ class PatientSummaryView(APIView):
                 'disclaimer': SAFETY_DISCLAIMER,
             })
         except Patient.DoesNotExist:
-            return Response({'error': 'Patient not found or unauthorized'}, status=404)
+            return Response({'error': 'Patient record not found or access restricted.'}, status=404)
 
 class NaturalQueryView(APIView):
     permission_classes = [IsAuthenticated]
@@ -43,6 +46,20 @@ class NaturalQueryView(APIView):
     def post(self, request):
         user = request.user
         query = request.data.get('query', '').lower()
+
+        # Patient Privacy Enclosure
+        if user.role in [UserRole.PATIENT, UserRole.FAMILY_MEMBER, UserRole.PALLIATIVE_MEMBER]:
+            if any(k in query for k in ['critical', 'high risk', 'other patient', 'all patient', 'inventory', 'stock', 'ഗുരുതരം', 'സ്റ്റോക്ക്']):
+                return Response({
+                    'query': query,
+                    'response': "🔒 Privacy Notice: Access to hospital-wide clinical triage and other patients' records is strictly restricted to authorized medical staff. As a patient, you can ask about your own appointments, medication schedule, or emergency ambulance support.",
+                    'disclaimer': SAFETY_DISCLAIMER,
+                })
+            return Response({
+                'query': query,
+                'response': f"Hello {user.first_name or 'Patient'}! Your CareLink assistant is ready to help with your appointments, prescribed medication schedule, or emergency support.",
+                'disclaimer': SAFETY_DISCLAIMER,
+            })
 
         patients_qs = Patient.objects.all()
         medicines_qs = MedicineItem.objects.all()

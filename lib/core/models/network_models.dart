@@ -431,57 +431,285 @@ class ClaimOrganizationRequestModel {
   }
 }
 
+class AppointmentStatusHistoryModel {
+  final String id;
+  final String fromStatus;
+  final String toStatus;
+  final String changedByUsername;
+  final String notes;
+  final String createdAt;
+
+  const AppointmentStatusHistoryModel({
+    required this.id,
+    required this.fromStatus,
+    required this.toStatus,
+    this.changedByUsername = 'Staff Desk',
+    this.notes = '',
+    this.createdAt = '',
+  });
+
+  factory AppointmentStatusHistoryModel.fromJson(Map<String, dynamic> json) {
+    return AppointmentStatusHistoryModel(
+      id: json['id']?.toString() ?? '',
+      fromStatus: json['from_status'] ?? '',
+      toStatus: json['to_status'] ?? '',
+      changedByUsername: json['changed_by_username'] ?? 'Staff Desk',
+      notes: json['notes'] ?? '',
+      createdAt: json['created_at'] != null ? json['created_at'].toString().replaceFirst('T', ' ').split('.').first : '',
+    );
+  }
+}
+
+class AvailableSlotModel {
+  final String slotId;
+  final String startTime;
+  final String endTime;
+  final String slotLabel;
+  final String roomNumber;
+  final String consultationType;
+  final int capacity;
+  final int bookedCount;
+  final bool isAvailable;
+  final String statusText;
+
+  const AvailableSlotModel({
+    required this.slotId,
+    required this.startTime,
+    required this.endTime,
+    required this.slotLabel,
+    this.roomNumber = 'OPD Room 102',
+    this.consultationType = 'General OPD',
+    this.capacity = 5,
+    this.bookedCount = 0,
+    this.isAvailable = true,
+    this.statusText = 'Available',
+  });
+
+  factory AvailableSlotModel.fromJson(Map<String, dynamic> json) {
+    return AvailableSlotModel(
+      slotId: json['slot_id'] ?? '',
+      startTime: json['start_time'] ?? '',
+      endTime: json['end_time'] ?? '',
+      slotLabel: json['slot_label'] ?? '${json['start_time']} - ${json['end_time']}',
+      roomNumber: json['room_number'] ?? 'OPD Room 102',
+      consultationType: json['consultation_type'] ?? 'General OPD',
+      capacity: json['capacity'] ?? 5,
+      bookedCount: json['booked_count'] ?? 0,
+      isAvailable: json['is_available'] ?? true,
+      statusText: json['status_text'] ?? 'Available',
+    );
+  }
+}
+
+class DoctorAvailableSlotsResponseModel {
+  final String doctorId;
+  final String doctorName;
+  final String specialty;
+  final String organizationId;
+  final String organizationName;
+  final String date;
+  final String dayOfWeek;
+  final bool isWorkingDay;
+  final bool isAvailable;
+  final String availabilityStatus;
+  final String availabilityReason;
+  final String substituteDoctorName;
+  final String roomNumber;
+  final String consultationType;
+  final int totalSlots;
+  final int availableSlotsCount;
+  final int maxTokens;
+  final int bookedTokensCount;
+  final List<AvailableSlotModel> slots;
+
+  const DoctorAvailableSlotsResponseModel({
+    required this.doctorId,
+    required this.doctorName,
+    this.specialty = 'General Medicine',
+    required this.organizationId,
+    required this.organizationName,
+    required this.date,
+    required this.dayOfWeek,
+    this.isWorkingDay = true,
+    this.isAvailable = true,
+    this.availabilityStatus = 'AVAILABLE',
+    this.availabilityReason = '',
+    this.substituteDoctorName = '',
+    this.roomNumber = 'OPD Room 102',
+    this.consultationType = 'General OPD',
+    this.totalSlots = 0,
+    this.availableSlotsCount = 0,
+    this.maxTokens = 30,
+    this.bookedTokensCount = 0,
+    this.slots = const [],
+  });
+
+  factory DoctorAvailableSlotsResponseModel.fromJson(Map<String, dynamic> json) {
+    List<AvailableSlotModel> parsedSlots = [];
+    if (json['slots'] != null && json['slots'] is List) {
+      parsedSlots = (json['slots'] as List)
+          .map((s) => AvailableSlotModel.fromJson(s as Map<String, dynamic>))
+          .toList();
+    }
+
+    String subDoc = '';
+    if (json['substitute_doctor'] != null && json['substitute_doctor'] is Map) {
+      subDoc = json['substitute_doctor']['name'] ?? '';
+    }
+
+    return DoctorAvailableSlotsResponseModel(
+      doctorId: json['doctor_id']?.toString() ?? '',
+      doctorName: json['doctor_name'] ?? '',
+      specialty: json['specialty'] ?? 'General OPD',
+      organizationId: json['organization_id']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? '',
+      date: json['date'] ?? '',
+      dayOfWeek: json['day_of_week'] ?? '',
+      isWorkingDay: json['is_working_day'] ?? true,
+      isAvailable: json['is_available'] ?? true,
+      availabilityStatus: json['availability_status'] ?? 'AVAILABLE',
+      availabilityReason: json['availability_reason'] ?? '',
+      substituteDoctorName: subDoc,
+      roomNumber: json['room_number'] ?? 'OPD Room 102',
+      consultationType: json['consultation_type'] ?? 'General OPD',
+      totalSlots: json['total_slots'] ?? parsedSlots.length,
+      availableSlotsCount: json['available_slots_count'] ?? parsedSlots.where((s) => s.isAvailable).length,
+      maxTokens: json['max_tokens'] ?? 30,
+      bookedTokensCount: json['booked_tokens_count'] ?? 0,
+      slots: parsedSlots,
+    );
+  }
+}
+
 class AppointmentRequestModel {
   final String id;
+  final String organizationId;
+  final String organizationName;
+  final String doctorId;
+  final String doctorName;
+  final String doctorSpecialty;
+  final String substituteDoctorName;
   final String patientName;
   final String patientPhone;
   final int patientAge;
   final String patientGender;
   final String district;
-  final String doctorName;
-  final String doctorSpecialty;
   final String preferredDate;
   final String preferredTimeSlot;
   final String consultationMode;
   final String chiefComplaint;
   final String status;
+  final String statusDisplay;
   final String tokenNumber;
+  final String hospitalNotes;
+  final String cancellationReason;
+  final String rescheduleReason;
+  final String rejectionReason;
+  final String? rescheduledFromDate;
+  final String? rescheduledFromSlot;
+  final bool isDoctorUnavailableFlagged;
+  final String createdAt;
+  final List<AppointmentStatusHistoryModel> statusHistory;
 
   const AppointmentRequestModel({
     required this.id,
+    this.organizationId = 'org_kozhikode',
+    this.organizationName = 'Calicut Medical Center',
+    this.doctorId = 'DOC-101',
+    required this.doctorName,
+    required this.doctorSpecialty,
+    this.substituteDoctorName = '',
     required this.patientName,
     required this.patientPhone,
     this.patientAge = 45,
     this.patientGender = 'Male',
     this.district = 'Kozhikode',
-    required this.doctorName,
-    required this.doctorSpecialty,
     required this.preferredDate,
     this.preferredTimeSlot = 'Morning (09:00 AM - 01:00 PM)',
     this.consultationMode = 'In-Person Hospital OPD',
     this.chiefComplaint = '',
     this.status = 'REQUESTED',
+    this.statusDisplay = 'Requested',
     this.tokenNumber = 'TK-01',
+    this.hospitalNotes = '',
+    this.cancellationReason = '',
+    this.rescheduleReason = '',
+    this.rejectionReason = '',
+    this.rescheduledFromDate,
+    this.rescheduledFromSlot,
+    this.isDoctorUnavailableFlagged = false,
+    this.createdAt = 'Today',
+    this.statusHistory = const [],
   });
 
   factory AppointmentRequestModel.fromJson(Map<String, dynamic> json) {
+    List<AppointmentStatusHistoryModel> history = [];
+    if (json['status_history'] != null && json['status_history'] is List) {
+      history = (json['status_history'] as List)
+          .map((h) => AppointmentStatusHistoryModel.fromJson(h as Map<String, dynamic>))
+          .toList();
+    }
+
     return AppointmentRequestModel(
       id: json['id']?.toString() ?? '',
+      organizationId: json['organization']?.toString() ?? json['organization_id']?.toString() ?? 'org_kozhikode',
+      organizationName: json['organization_name'] ?? 'Calicut Medical Center',
+      doctorId: json['doctor']?.toString() ?? json['doctor_id']?.toString() ?? 'DOC-101',
+      doctorName: json['doctor_name'] ?? 'Doctor Specialist',
+      doctorSpecialty: json['doctor_specialty'] ?? 'Palliative Care',
+      substituteDoctorName: json['substitute_doctor_name'] ?? '',
       patientName: json['patient_name'] ?? '',
       patientPhone: json['patient_phone'] ?? '',
       patientAge: json['patient_age'] ?? 45,
       patientGender: json['patient_gender'] ?? 'Male',
       district: json['district'] ?? 'Kozhikode',
-      doctorName: json['doctor_name'] ?? 'Doctor Specialist',
-      doctorSpecialty: json['doctor_specialty'] ?? 'Palliative Care',
       preferredDate: json['preferred_date'] ?? '',
       preferredTimeSlot: json['preferred_time_slot'] ?? 'Morning (09:00 AM - 01:00 PM)',
       consultationMode: json['consultation_mode'] ?? 'In-Person Hospital OPD',
       chiefComplaint: json['chief_complaint'] ?? '',
       status: json['status'] ?? 'REQUESTED',
+      statusDisplay: json['status_display'] ?? json['status'] ?? 'Requested',
       tokenNumber: json['token_number'] ?? 'TK-01',
+      hospitalNotes: json['hospital_notes'] ?? '',
+      cancellationReason: json['cancellation_reason'] ?? '',
+      rescheduleReason: json['reschedule_reason'] ?? '',
+      rejectionReason: json['rejection_reason'] ?? '',
+      rescheduledFromDate: json['rescheduled_from_date'],
+      rescheduledFromSlot: json['rescheduled_from_slot'],
+      isDoctorUnavailableFlagged: json['is_doctor_unavailable_flagged'] ?? false,
+      createdAt: json['created_at'] != null ? json['created_at'].toString().split('T').first : 'Today',
+      statusHistory: history,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'organization': organizationId,
+    'organization_name': organizationName,
+    'doctor': doctorId,
+    'doctor_name': doctorName,
+    'doctor_specialty': doctorSpecialty,
+    'substitute_doctor_name': substituteDoctorName,
+    'patient_name': patientName,
+    'patient_phone': patientPhone,
+    'patient_age': patientAge,
+    'patient_gender': patientGender,
+    'district': district,
+    'preferred_date': preferredDate,
+    'preferred_time_slot': preferredTimeSlot,
+    'consultation_mode': consultationMode,
+    'chief_complaint': chiefComplaint,
+    'status': status,
+    'status_display': statusDisplay,
+    'token_number': tokenNumber,
+    'hospital_notes': hospitalNotes,
+    'cancellation_reason': cancellationReason,
+    'reschedule_reason': rescheduleReason,
+    'rejection_reason': rejectionReason,
+    'rescheduled_from_date': rescheduledFromDate,
+    'rescheduled_from_slot': rescheduledFromSlot,
+    'is_doctor_unavailable_flagged': isDoctorUnavailableFlagged,
+  };
 }
 
 class HealthcareProspectModel {
@@ -722,94 +950,7 @@ class DoctorAvailabilityModel {
   }
 }
 
-class QueueTokenModel {
-  final String id;
-  final int tokenNumber;
-  final String tokenLabel;
-  final String patientName;
-  final String patientPhone;
-  final String status;
-  final String statusDisplay;
-  final String calledAt;
-  final String consultationStartedAt;
-  final String completedAt;
-  final String clinicalNotes;
 
-  const QueueTokenModel({
-    required this.id,
-    required this.tokenNumber,
-    required this.tokenLabel,
-    required this.patientName,
-    required this.patientPhone,
-    required this.status,
-    this.statusDisplay = 'Waiting',
-    this.calledAt = '',
-    this.consultationStartedAt = '',
-    this.completedAt = '',
-    this.clinicalNotes = '',
-  });
-
-  factory QueueTokenModel.fromJson(Map<String, dynamic> json) {
-    return QueueTokenModel(
-      id: json['id']?.toString() ?? '',
-      tokenNumber: json['token_number'] ?? 0,
-      tokenLabel: json['token_label'] ?? 'A-01',
-      patientName: json['patient_name'] ?? '',
-      patientPhone: json['patient_phone'] ?? '',
-      status: json['status'] ?? 'WAITING',
-      statusDisplay: json['status_display'] ?? json['status'] ?? 'Waiting',
-      calledAt: json['called_at'] ?? '',
-      consultationStartedAt: json['consultation_started_at'] ?? '',
-      completedAt: json['completed_at'] ?? '',
-      clinicalNotes: json['clinical_notes'] ?? '',
-    );
-  }
-}
-
-class QueueSessionModel {
-  final String id;
-  final String doctorId;
-  final String doctorName;
-  final String departmentName;
-  final String roomNumber;
-  final int currentTokenNumber;
-  final int totalTokensIssued;
-  final bool isActive;
-  final List<QueueTokenModel> tokens;
-
-  const QueueSessionModel({
-    required this.id,
-    required this.doctorId,
-    required this.doctorName,
-    this.departmentName = 'General OPD',
-    this.roomNumber = 'Room 102',
-    this.currentTokenNumber = 0,
-    this.totalTokensIssued = 0,
-    this.isActive = true,
-    this.tokens = const [],
-  });
-
-  factory QueueSessionModel.fromJson(Map<String, dynamic> json) {
-    List<QueueTokenModel> parsedTokens = [];
-    if (json['tokens'] != null && json['tokens'] is List) {
-      parsedTokens = (json['tokens'] as List)
-          .map((t) => QueueTokenModel.fromJson(t as Map<String, dynamic>))
-          .toList();
-    }
-
-    return QueueSessionModel(
-      id: json['id']?.toString() ?? '',
-      doctorId: json['doctor']?.toString() ?? '',
-      doctorName: json['doctor_name'] ?? '',
-      departmentName: json['department_name'] ?? 'General OPD',
-      roomNumber: json['room_number'] ?? 'Room 102',
-      currentTokenNumber: json['current_token_number'] ?? 0,
-      totalTokensIssued: json['total_tokens_issued'] ?? 0,
-      isActive: json['is_active'] ?? true,
-      tokens: parsedTokens,
-    );
-  }
-}
 
 class LiveQueueTrackerModel {
   final String tokenId;
@@ -866,5 +1007,317 @@ class LiveQueueTrackerModel {
     );
   }
 }
+
+class QueueTokenModel {
+  final String id;
+  final String queueSessionId;
+  final String? appointmentId;
+  final int tokenNumber;
+  final String tokenLabel;
+  final String patientName;
+  final String patientPhone;
+  final String priority;
+  final int priorityRank;
+  final bool isWalkIn;
+  final String qrCodeHash;
+  final String status;
+  final String statusDisplay;
+  final String? checkInTime;
+  final String? calledAt;
+  final int callCount;
+  final String? lastCalledAt;
+  final int waitTimeSeconds;
+  final int consultationDurationSeconds;
+  final String clinicalNotes;
+  final String roomNumber;
+  final String doctorName;
+
+  const QueueTokenModel({
+    required this.id,
+    required this.queueSessionId,
+    this.appointmentId,
+    required this.tokenNumber,
+    required this.tokenLabel,
+    required this.patientName,
+    required this.patientPhone,
+    this.priority = 'NORMAL',
+    this.priorityRank = 1,
+    this.isWalkIn = false,
+    this.qrCodeHash = '',
+    this.status = 'WAITING',
+    this.statusDisplay = 'Waiting in Queue',
+    this.checkInTime,
+    this.calledAt,
+    this.callCount = 0,
+    this.lastCalledAt,
+    this.waitTimeSeconds = 0,
+    this.consultationDurationSeconds = 0,
+    this.clinicalNotes = '',
+    this.roomNumber = 'OPD Room 102',
+    this.doctorName = 'Doctor',
+  });
+
+  factory QueueTokenModel.fromJson(Map<String, dynamic> json) {
+    return QueueTokenModel(
+      id: json['id']?.toString() ?? '',
+      queueSessionId: json['queue_session']?.toString() ?? json['queue_session_id']?.toString() ?? '',
+      appointmentId: json['appointment']?.toString(),
+      tokenNumber: json['token_number'] ?? 1,
+      tokenLabel: json['token_label'] ?? 'C-01',
+      patientName: json['patient_name'] ?? 'Patient',
+      patientPhone: json['patient_phone'] ?? '',
+      priority: json['priority'] ?? 'NORMAL',
+      priorityRank: json['priority_rank'] ?? 1,
+      isWalkIn: json['is_walk_in'] ?? false,
+      qrCodeHash: json['qr_code_hash'] ?? '',
+      status: json['status'] ?? 'WAITING',
+      statusDisplay: json['status_display'] ?? json['status'] ?? 'Waiting',
+      checkInTime: json['check_in_time'],
+      calledAt: json['called_at'],
+      callCount: json['call_count'] ?? 0,
+      lastCalledAt: json['last_called_at'],
+      waitTimeSeconds: json['wait_time_seconds'] ?? 0,
+      consultationDurationSeconds: json['consultation_duration_seconds'] ?? 0,
+      clinicalNotes: json['clinical_notes'] ?? '',
+      roomNumber: json['room_number'] ?? 'OPD Room 102',
+      doctorName: json['doctor_name'] ?? 'Doctor',
+    );
+  }
+}
+
+class QueueSessionModel {
+  final String id;
+  final String organizationId;
+  final String organizationName;
+  final String doctorId;
+  final String doctorName;
+  final String? departmentName;
+  final String roomNumber;
+  final String queueType;
+  final String queueTypeDisplay;
+  final String tokenPrefix;
+  final String sessionDate;
+  final int currentTokenNumber;
+  final int totalTokensIssued;
+  final bool isActive;
+  final bool isPaused;
+  final String pauseReason;
+  final int avgConsultationDurationSeconds;
+  final int totalCompletedConsultations;
+  final List<QueueTokenModel> tokens;
+
+  const QueueSessionModel({
+    required this.id,
+    required this.organizationId,
+    required this.organizationName,
+    required this.doctorId,
+    required this.doctorName,
+    this.departmentName,
+    this.roomNumber = 'OPD Room 102',
+    this.queueType = 'OPD',
+    this.queueTypeDisplay = 'General OPD',
+    this.tokenPrefix = 'C',
+    this.sessionDate = '',
+    this.currentTokenNumber = 0,
+    this.totalTokensIssued = 0,
+    this.isActive = true,
+    this.isPaused = false,
+    this.pauseReason = '',
+    this.avgConsultationDurationSeconds = 900,
+    this.totalCompletedConsultations = 0,
+    this.tokens = const [],
+  });
+
+  factory QueueSessionModel.fromJson(Map<String, dynamic> json) {
+    List<QueueTokenModel> parsedTokens = [];
+    if (json['tokens'] != null && json['tokens'] is List) {
+      parsedTokens = (json['tokens'] as List)
+          .map((t) => QueueTokenModel.fromJson(t as Map<String, dynamic>))
+          .toList();
+    }
+
+    return QueueSessionModel(
+      id: json['id']?.toString() ?? '',
+      organizationId: json['organization']?.toString() ?? json['organization_id']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? 'Hospital',
+      doctorId: json['doctor']?.toString() ?? json['doctor_id']?.toString() ?? '',
+      doctorName: json['doctor_name'] ?? 'Doctor',
+      departmentName: json['department_name'],
+      roomNumber: json['room_number'] ?? 'OPD Room 102',
+      queueType: json['queue_type'] ?? 'OPD',
+      queueTypeDisplay: json['queue_type_display'] ?? json['queue_type'] ?? 'General OPD',
+      tokenPrefix: json['token_prefix'] ?? 'C',
+      sessionDate: json['session_date'] ?? '',
+      currentTokenNumber: json['current_token_number'] ?? 0,
+      totalTokensIssued: json['total_tokens_issued'] ?? 0,
+      isActive: json['is_active'] ?? true,
+      isPaused: json['is_paused'] ?? false,
+      pauseReason: json['pause_reason'] ?? '',
+      avgConsultationDurationSeconds: json['avg_consultation_duration_seconds'] ?? 900,
+      totalCompletedConsultations: json['total_completed_consultations'] ?? 0,
+      tokens: parsedTokens,
+    );
+  }
+}
+
+class PublicQueueDisplayModel {
+  final String organizationId;
+  final String organizationName;
+  final String departmentName;
+  final String doctorName;
+  final String roomNumber;
+  final String queueType;
+  final String? nowServingToken;
+  final String nowServingStatus;
+  final List<Map<String, String>> nextTokens;
+  final bool isPaused;
+  final String pauseReason;
+  final int totalWaiting;
+  final String lastUpdated;
+
+  const PublicQueueDisplayModel({
+    required this.organizationId,
+    required this.organizationName,
+    this.departmentName = 'OPD Consultation',
+    required this.doctorName,
+    required this.roomNumber,
+    this.queueType = 'OPD',
+    this.nowServingToken,
+    this.nowServingStatus = 'IDLE',
+    this.nextTokens = const [],
+    this.isPaused = false,
+    this.pauseReason = '',
+    this.totalWaiting = 0,
+    this.lastUpdated = '',
+  });
+
+  factory PublicQueueDisplayModel.fromJson(Map<String, dynamic> json) {
+    List<Map<String, String>> nextList = [];
+    if (json['next_tokens'] != null && json['next_tokens'] is List) {
+      for (var item in json['next_tokens']) {
+        if (item is Map) {
+          nextList.add({
+            'token_label': item['token_label']?.toString() ?? '',
+            'priority': item['priority']?.toString() ?? 'NORMAL',
+          });
+        }
+      }
+    }
+
+    String? servingLabel;
+    String servingStatus = 'IDLE';
+    if (json['now_serving'] != null && json['now_serving'] is Map) {
+      servingLabel = json['now_serving']['token_label']?.toString();
+      servingStatus = json['now_serving']['status']?.toString() ?? 'IDLE';
+    }
+
+    return PublicQueueDisplayModel(
+      organizationId: json['organization_id']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? 'CareLink Network Hospital',
+      departmentName: json['department_name'] ?? 'OPD Department',
+      doctorName: json['doctor_name'] ?? 'Doctor',
+      roomNumber: json['room_number'] ?? 'OPD Room',
+      queueType: json['queue_type'] ?? 'OPD',
+      nowServingToken: servingLabel,
+      nowServingStatus: servingStatus,
+      nextTokens: nextList,
+      isPaused: json['is_paused'] ?? false,
+      pauseReason: json['pause_reason'] ?? '',
+      totalWaiting: json['total_waiting'] ?? 0,
+      lastUpdated: json['last_updated'] ?? '',
+    );
+  }
+}
+
+class HospitalFlowAnalyticsModel {
+  final String organizationId;
+  final String organizationName;
+  final String reportDate;
+  final int totalPatients;
+  final int appointmentCount;
+  final int walkInCount;
+  final int completedCount;
+  final int noShowCount;
+  final int averageWaitMinutes;
+  final int averageConsultationMinutes;
+  final String peakHours;
+  final List<Map<String, dynamic>> departments;
+
+  const HospitalFlowAnalyticsModel({
+    required this.organizationId,
+    required this.organizationName,
+    required this.reportDate,
+    this.totalPatients = 0,
+    this.appointmentCount = 0,
+    this.walkInCount = 0,
+    this.completedCount = 0,
+    this.noShowCount = 0,
+    this.averageWaitMinutes = 15,
+    this.averageConsultationMinutes = 12,
+    this.peakHours = '10:00 AM – 12:30 PM',
+    this.departments = const [],
+  });
+
+  factory HospitalFlowAnalyticsModel.fromJson(Map<String, dynamic> json) {
+    List<Map<String, dynamic>> depts = [];
+    if (json['departments'] != null && json['departments'] is List) {
+      depts = List<Map<String, dynamic>>.from(json['departments']);
+    }
+
+    return HospitalFlowAnalyticsModel(
+      organizationId: json['organization_id']?.toString() ?? '',
+      organizationName: json['organization_name'] ?? 'Hospital',
+      reportDate: json['report_date'] ?? '',
+      totalPatients: json['total_patients'] ?? 0,
+      appointmentCount: json['appointment_count'] ?? 0,
+      walkInCount: json['walk_in_count'] ?? 0,
+      completedCount: json['completed_count'] ?? 0,
+      noShowCount: json['no_show_count'] ?? 0,
+      averageWaitMinutes: json['average_wait_minutes'] ?? 15,
+      averageConsultationMinutes: json['average_consultation_minutes'] ?? 12,
+      peakHours: json['peak_hours'] ?? '10:00 AM – 12:30 PM',
+      departments: depts,
+    );
+  }
+}
+
+class PatientCheckInResultModel {
+  final String checkInId;
+  final String tokenId;
+  final String tokenLabel;
+  final String patientName;
+  final String roomNumber;
+  final String doctorName;
+  final int patientsAhead;
+  final int estimatedWaitMinutes;
+  final String message;
+
+  const PatientCheckInResultModel({
+    required this.checkInId,
+    required this.tokenId,
+    required this.tokenLabel,
+    required this.patientName,
+    this.roomNumber = 'OPD Room',
+    this.doctorName = 'Doctor',
+    this.patientsAhead = 0,
+    this.estimatedWaitMinutes = 0,
+    required this.message,
+  });
+
+  factory PatientCheckInResultModel.fromJson(Map<String, dynamic> json) {
+    return PatientCheckInResultModel(
+      checkInId: json['check_in_id']?.toString() ?? '',
+      tokenId: json['token_id']?.toString() ?? '',
+      tokenLabel: json['token_label'] ?? 'C-01',
+      patientName: json['patient_name'] ?? 'Patient',
+      roomNumber: json['room_number'] ?? 'OPD Room 102',
+      doctorName: json['doctor_name'] ?? 'Doctor',
+      patientsAhead: json['patients_ahead'] ?? 0,
+      estimatedWaitMinutes: json['estimated_wait_minutes'] ?? 0,
+      message: json['message'] ?? 'Check-in successful!',
+    );
+  }
+}
+
 
 

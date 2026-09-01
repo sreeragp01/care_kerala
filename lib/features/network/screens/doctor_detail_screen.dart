@@ -177,26 +177,28 @@ class DoctorDetailScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: isDark ? AppColors.darkCardBorder : AppColors.cardBorder),
                   ),
-                  child: Row(
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    runSpacing: 10,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Consultation Mode',
-                              style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Consultation Mode',
+                            style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                          ),
+                          Text(
+                            doctor.consultationFee > 0 ? '₹${doctor.consultationFee.toInt()} / session' : 'Free / Trust Supported',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: doctor.consultationFee == 0 ? AppColors.brandHealthGreen : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
                             ),
-                            Text(
-                              doctor.consultationFee > 0 ? '₹${doctor.consultationFee.toInt()} / session' : 'Free / Trust Supported',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: doctor.consultationFee == 0 ? AppColors.brandHealthGreen : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                       ElevatedButton.icon(
                         onPressed: () => _showAppointmentBottomSheet(context, isDark),

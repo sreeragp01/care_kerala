@@ -554,6 +554,13 @@ class AppointmentRequest(models.Model):
     status = models.CharField(max_length=30, choices=AppointmentStatus.choices, default=AppointmentStatus.REQUESTED)
     token_number = models.CharField(max_length=50, blank=True, default='')
     hospital_notes = models.TextField(blank=True, default='')
+    cancellation_reason = models.TextField(blank=True, default='')
+    reschedule_reason = models.TextField(blank=True, default='')
+    rejection_reason = models.TextField(blank=True, default='')
+    rescheduled_from_date = models.DateField(null=True, blank=True)
+    rescheduled_from_slot = models.CharField(max_length=50, blank=True, default='')
+    is_doctor_unavailable_flagged = models.BooleanField(default=False)
+    substitute_doctor = models.ForeignKey('Doctor', on_delete=models.SET_NULL, null=True, blank=True, related_name='substituted_appointments')
     idempotency_key = models.CharField(max_length=64, blank=True, null=True, db_index=True)
     responded_at = models.DateTimeField(null=True, blank=True)
     responded_by = models.ForeignKey(
@@ -635,17 +642,67 @@ class TokenStatus(models.TextChoices):
     SKIPPED = 'SKIPPED', 'Skipped / On Hold'
     CANCELLED = 'CANCELLED', 'Cancelled / No Show'
 
+class QueueType(models.TextChoices):
+    OPD = 'OPD', 'General OPD Consultation'
+    EMERGENCY = 'EMERGENCY', 'Emergency Casualty'
+    LABORATORY = 'LABORATORY', 'Clinical Diagnostic Laboratory'
+    PHARMACY = 'PHARMACY', 'Hospital Dispensary & Pharmacy'
+    RADIOLOGY = 'RADIOLOGY', 'Radiology, X-Ray & Imaging'
+    REGISTRATION = 'REGISTRATION', 'Patient Intake & Registration'
+    BILLING = 'BILLING', 'Billing & Insurance Desk'
+    PALLIATIVE = 'PALLIATIVE', 'Palliative & Pain Triage'
+
+class QueuePriority(models.TextChoices):
+    NORMAL = 'NORMAL', 'Normal Priority'
+    PRIORITY = 'PRIORITY', 'Clinical Priority / Senior / Palliative Care Plan'
+    URGENT = 'URGENT', 'Urgent / High Pain Triage'
+    EMERGENCY = 'EMERGENCY', 'Clinical Emergency (Immediate)'
+
+class QueuePauseReason(models.TextChoices):
+    EMERGENCY = 'EMERGENCY', 'Emergency Surgery / Trauma Resuscitation'
+    DOCTOR_UNAVAILABLE = 'DOCTOR_UNAVAILABLE', 'Doctor Briefly Unavailable / Ward Rounds'
+    BREAK = 'BREAK', 'Scheduled Break / Lunch'
+    TECHNICAL = 'TECHNICAL', 'Technical / System Maintenance'
+    OTHER = 'OTHER', 'Other Administrative Reason'
+
+class QueuePolicy(models.Model):
+    """Configurable operational rules per queue type for an organization"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='queue_policies')
+    queue_type = models.CharField(max_length=30, choices=QueueType.choices, default=QueueType.OPD)
+    default_avg_consultation_minutes = models.IntegerField(default=15)
+    max_recall_attempts = models.IntegerField(default=3)
+    recall_wait_seconds = models.IntegerField(default=120)
+    auto_no_show_after_recalls = models.BooleanField(default=True)
+    allow_digital_check_in = models.BooleanField(default=True)
+    check_in_window_hours_before = models.DecimalField(max_digits=4, decimal_places=2, default=2.00)
+    token_prefix = models.CharField(max_length=10, default='C')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('organization', 'queue_type')
+        ordering = ['organization', 'queue_type']
+
+    def __str__(self):
+        return f"{self.organization.name} - {self.get_queue_type_display()} Policy (Prefix: {self.token_prefix})"
+
 class QueueSession(models.Model):
-    """Live OPD Queue session for a doctor and room on a given day"""
+    """Live OPD / Department Queue session for a doctor and room on a given day"""
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='queue_sessions')
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='queue_sessions')
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='queue_sessions')
     schedule = models.ForeignKey(DoctorSchedule, on_delete=models.SET_NULL, null=True, blank=True)
+    queue_type = models.CharField(max_length=30, choices=QueueType.choices, default=QueueType.OPD)
+    token_prefix = models.CharField(max_length=10, default='C')
     session_date = models.DateField(default=timezone.now)
     room_number = models.CharField(max_length=50, default='OPD Room 102')
     current_token_number = models.IntegerField(default=0)
     total_tokens_issued = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    is_paused = models.BooleanField(default=False)
+    pause_reason = models.CharField(max_length=30, choices=QueuePauseReason.choices, blank=True, default='')
+    avg_consultation_duration_seconds = models.IntegerField(default=900)
+    total_completed_consultations = models.IntegerField(default=0)
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
 
@@ -653,27 +710,97 @@ class QueueSession(models.Model):
         ordering = ['-session_date', '-started_at']
 
     def __str__(self):
-        return f"Queue for Dr. {self.doctor.name} on {self.session_date} (Current: {self.current_token_number}/{self.total_tokens_issued})"
+        return f"[{self.queue_type}] Queue for Dr. {self.doctor.name} on {self.session_date} (Current: {self.current_token_number}/{self.total_tokens_issued})"
+
+class QueuePause(models.Model):
+    """Audit log of queue session pauses and reasons"""
+    queue_session = models.ForeignKey(QueueSession, on_delete=models.CASCADE, related_name='pauses')
+    reason = models.CharField(max_length=30, choices=QueuePauseReason.choices)
+    notes = models.TextField(blank=True, default='')
+    paused_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    paused_at = models.DateTimeField(auto_now_add=True)
+    resumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-paused_at']
+
+    def __str__(self):
+        return f"Pause on Session #{self.queue_session_id}: {self.get_reason_display()}"
 
 class QueueToken(models.Model):
     """Patient queue token record linked to live queue session and appointment"""
     queue_session = models.ForeignKey(QueueSession, on_delete=models.CASCADE, related_name='tokens')
     appointment = models.ForeignKey(AppointmentRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='queue_tokens')
     token_number = models.IntegerField()
-    token_label = models.CharField(max_length=20, default='A-01')
+    token_label = models.CharField(max_length=20, default='C-01')
     patient_name = models.CharField(max_length=150)
     patient_phone = models.CharField(max_length=20)
+    priority = models.CharField(max_length=30, choices=QueuePriority.choices, default=QueuePriority.NORMAL)
+    priority_rank = models.IntegerField(default=1, help_text='1: Normal, 2: Priority, 3: Urgent, 4: Emergency')
+    is_walk_in = models.BooleanField(default=False)
+    qr_code_hash = models.CharField(max_length=64, blank=True, default='', db_index=True)
     status = models.CharField(max_length=30, choices=TokenStatus.choices, default=TokenStatus.WAITING)
+    check_in_time = models.DateTimeField(null=True, blank=True)
     called_at = models.DateTimeField(null=True, blank=True)
+    call_count = models.IntegerField(default=0)
+    last_called_at = models.DateTimeField(null=True, blank=True)
     consultation_started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    wait_time_seconds = models.IntegerField(default=0)
+    consultation_duration_seconds = models.IntegerField(default=0)
     clinical_notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['token_number']
+        ordering = ['-priority_rank', 'token_number']
         unique_together = ('queue_session', 'token_number')
 
     def __str__(self):
-        return f"Token {self.token_label} (#{self.token_number}) - {self.patient_name} [{self.get_status_display()}]"
+        return f"Token {self.token_label} (#{self.token_number}) [{self.get_priority_display()}] - {self.patient_name} [{self.get_status_display()}]"
+
+class PatientCheckIn(models.Model):
+    """Digital QR or arrival check-in audit log"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='patient_checkins')
+    appointment = models.ForeignKey(AppointmentRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkins')
+    token = models.ForeignKey(QueueToken, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkins')
+    check_in_method = models.CharField(max_length=30, default='QR_SCAN')
+    qr_payload = models.CharField(max_length=128, blank=True, default='')
+    checked_in_at = models.DateTimeField(auto_now_add=True)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-checked_in_at']
+
+    def __str__(self):
+        return f"Check-In #{self.id} for {self.organization.name} via {self.check_in_method} at {self.checked_in_at}"
+
+class WaitingTimeSnapshot(models.Model):
+    """Periodic snapshot for historical throughput analytics"""
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='wait_time_snapshots')
+    queue_session = models.ForeignKey(QueueSession, on_delete=models.CASCADE, related_name='wait_time_snapshots')
+    snapshot_time = models.DateTimeField(auto_now_add=True)
+    waiting_patients_count = models.IntegerField(default=0)
+    avg_wait_time_minutes = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-snapshot_time']
+
+class DomainEventLog(models.Model):
+    """Centralized domain event log for audit trails, FCM notifications, and platform analytics"""
+    event_type = models.CharField(max_length=60, db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name='domain_events')
+    entity_type = models.CharField(max_length=50, db_index=True)
+    entity_id = models.IntegerField(db_index=True)
+    actor_id = models.IntegerField(null=True, blank=True)
+    actor_username = models.CharField(max_length=150, default='system')
+    title = models.CharField(max_length=255)
+    message = models.TextField(blank=True, default='')
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.event_type}] {self.entity_type} #{self.entity_id} - {self.title}"
 

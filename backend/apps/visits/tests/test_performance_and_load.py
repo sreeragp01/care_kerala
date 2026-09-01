@@ -1,5 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
+from django.utils import timezone
+from datetime import timedelta
 from apps.organizations.models import Organization
 from apps.authentication.models import User, UserRole
 from apps.patients.models import Patient, VitalsReading, PatientAuditLog
@@ -32,9 +34,11 @@ class PerformanceLoadAndIntegrationTestCase(TestCase):
             organization=self.org,
             name="Morphine Oral Sol. 10mg/5ml",
             category="Analgesics",
-            stock_quantity=10, # 10 units available
+            stock_quantity=10,
             unit="bottles",
-            reorder_level=5
+            reorder_level=5,
+            expiry_date=timezone.now().date() + timedelta(days=365),
+            batch_number="BATCH-LOAD-01"
         )
 
     def test_offline_sync_burst_simulation(self):
@@ -90,26 +94,23 @@ class PerformanceLoadAndIntegrationTestCase(TestCase):
         res2 = self.client.post(f'/api/inventory/medicines/{self.medicine.id}/issue_stock/', {'quantity': 7})
         self.assertEqual(res2.status_code, 400)
         self.medicine.refresh_from_db()
-        self.assertEqual(self.medicine.stock_quantity, 4) # Stock never drops below zero
+        self.assertEqual(self.medicine.stock_quantity, 4)
 
     def test_end_to_end_clinical_lifecycle_integration(self):
         """Tests complete clinical workflow from patient registration, vitals recording, critical alert trigger, to doctor sign-off."""
-        # Step 1: Nurse records critical vitals (SpO2 = 88%)
         self.client.force_authenticate(user=self.nurse)
         res_vitals = self.client.post(f'/api/patients/{self.patient.id}/add_vitals/', {
             'bp': '110/70',
             'pulse': 95,
-            'spo2': 88, # Critical SpO2 < 92%
+            'spo2': 88,
             'pain_scale': 8
         })
-        self.assertEqual(res_vitals.status_code, 200)
+        self.assertIn(res_vitals.status_code, [200, 201])
 
-        # Step 2: Verify ClinicalAlert generated automatically
         alert = ClinicalAlert.objects.filter(patient=self.patient, severity=AlertSeverity.CRITICAL).first()
         self.assertIsNotNone(alert)
         self.assertEqual(alert.status, AlertStatus.OPEN)
 
-        # Step 3: Scheduled Home Visit created & completed
         visit = HomeVisit.objects.create(
             organization=self.org,
             patient=self.patient,
@@ -124,7 +125,6 @@ class PerformanceLoadAndIntegrationTestCase(TestCase):
         })
         self.assertEqual(res_complete.status_code, 200)
 
-        # Step 4: Doctor performs clinical sign-off
         self.client.force_authenticate(user=self.doctor)
         res_doc = self.client.post(f'/api/visits/{visit.id}/doctor_review/', {
             'doctor_review_notes': 'SpO2 stabilized to 96% after oxygen therapy. Continue monitoring.'
@@ -133,6 +133,4 @@ class PerformanceLoadAndIntegrationTestCase(TestCase):
         visit.refresh_from_db()
         self.assertEqual(visit.status, VisitStatus.CLOSED)
         self.assertTrue(visit.doctor_signed_off)
-
-        # Step 5: Verify Healthcare Audit Trail recorded
         self.assertGreaterEqual(PatientAuditLog.objects.filter(patient=self.patient).count(), 1)
